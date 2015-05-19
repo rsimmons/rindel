@@ -1,0 +1,14 @@
+{
+  "name": "temporal-splendor-runtime",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Russel Simmons <russ@rsimmons.org>",
+  "license": "MIT",
+  "dependencies": {
+    "heap": "^0.2.6"
+  }
+}
