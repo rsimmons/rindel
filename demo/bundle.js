@@ -525,7 +525,25 @@ PriorityQueue.prototype.peek = function() {
 };
 
 PriorityQueue.prototype.pull = function() {
-  return this.heap.pop();
+  // We allow inserting tasks that are exactly identical to other tasks,
+  //  but we want them to be coalesced (de-duplicated). Rather than do that
+  //  at insert time, it seems easier to do it at pull time.
+
+  // pop next task
+  var task = this.heap.pop();
+
+  // As long as heap is not empty, keep popping off any tasks identical to this one.
+  // They must all come in a row, so we can stop when we get a different one.
+  while (!this.heap.empty()) {
+    var nextTask = this.heap.peek();
+    if ((nextTask.time === task.time) && (nextTask.topoOrder === task.topoOrder) && (nextTask.closure === task.closure)) {
+      this.heap.pop();
+    } else {
+      break;
+    }
+  }
+
+  return task;
 };
 
 module.exports = PriorityQueue;
