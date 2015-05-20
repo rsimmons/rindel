@@ -6,6 +6,22 @@ var Runtime = function() {
   this.priorityQueue = new PriorityQueue();
 }
 
+Runtime.prototype.createLexEnv = function(addProps) {
+  return this.deriveLexEnv(null, addProps);
+}
+
+Runtime.prototype.deriveLexEnv = function(parentLexEnv, addProps) {
+  var propsObj = {};
+
+  for (var k in addProps) {
+    if (addProps.hasOwnProperty(k)) {
+      propsObj[k] = {value: addProps[k], writeable: false};
+    }
+  }
+
+  return Object.create(parentLexEnv, propsObj);
+}
+
 Runtime.prototype.createSlot = function() {
   return {
     currentValue: undefined,
@@ -76,7 +92,7 @@ Runtime.prototype.runNextTask = function() {
   nextTask.closure(nextTask.time);
 }
 
-Runtime.prototype.addApplication = function(startTime, func, args, output, baseTopoOrder) {
+Runtime.prototype.addApplication = function(startTime, func, args, output, baseTopoOrder, lexEnv) {
   // make closure for updating activation
   var deactivator;
   var runtime = this;
@@ -91,7 +107,7 @@ Runtime.prototype.addApplication = function(startTime, func, args, output, baseT
 
     // call new activator, updating deactivator
     // if both func and args changed, func should be updated first, so we pass baseTopoOrder +'1' here
-    deactivator = activator(runtime, atTime, args, output, baseTopoOrder +'1');
+    deactivator = activator(runtime, atTime, args, output, baseTopoOrder +'1', lexEnv);
 
     if (deactivator === undefined) {
       throw new Error('activator did not return deactivator function');

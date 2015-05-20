@@ -1,7 +1,7 @@
 'use strict';
 
 function liftN(func, arity) {
-  return function(runtime, startTime, argSlots, outputSlot, baseTopoOrder) {
+  return function(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv) {
     if (argSlots.length !== arity) {
       throw new Error('got wrong number of arguments');
     }
@@ -33,7 +33,7 @@ function liftN(func, arity) {
   };
 };
 
-function delay1(runtime, startTime, argSlots, outputSlot, baseTopoOrder) {
+function delay1(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv) {
   if (argSlots.length !== 1) {
     throw new Error('got wrong number of arguments');
   }
