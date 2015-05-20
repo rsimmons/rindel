@@ -3,18 +3,18 @@
 var Runtime = require('../runtime');
 
 var runtime = new Runtime();
-
 var rootLexEnv;
-
 var finalOutput = runtime.createSlot();
-
 var initialDateNow = Date.now();
+var timeoutID;
+var demoProgs = {
+  prog0: require('./progs/prog0'),
+  prog1: require('./progs/prog1'),
+};
 
 function getMasterTime() {
   return 0.001*(Date.now() - initialDateNow);
 }
-
-var timeoutID;
 
 // "run" the runtime as necessary
 function tryRunning() {
@@ -67,8 +67,4 @@ function startDemoProg(prog) {
   tryRunning();
 }
 
-// require demo programs
-var prog0 = require('./progs/prog0');
-var prog1 = require('./progs/prog1');
-
-startDemoProg(prog1);
+startDemoProg(demoProgs.prog1);
