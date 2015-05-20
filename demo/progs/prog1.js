@@ -6,7 +6,7 @@ function main(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv) {
   }
 
   // add application for final output (slot already created)
-  var $_unappOut = runtime.addApplication(startTime, lexEnv.delay1, [lexEnv.inputA], outputSlot, baseTopoOrder+'1');
+  var $_unappOut = runtime.addApplication(startTime, lexEnv.delay1, [lexEnv.mouseX], outputSlot, baseTopoOrder+'1');
 
   // create and return deactivator closure. it needs to undo any applications
   return function() {
