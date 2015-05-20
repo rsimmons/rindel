@@ -153,8 +153,8 @@ Runtime.prototype.addApplication = function(startTime, func, args, output, baseT
     var activator = runtime.getSlotValue(func);
 
     // call new activator, updating deactivator
-    // if both func and args changed, func should be updated first, so we pass baseTopoOrder +'1' here
-    deactivator = activator(runtime, atTime, args, output, baseTopoOrder +'1', lexEnv);
+    // if both func and args changed, func should be updated first, so we pass baseTopoOrder+'1' here
+    deactivator = activator(runtime, atTime, args, output, baseTopoOrder+'1', lexEnv);
 
     if (deactivator === undefined) {
       throw new Error('activator did not return deactivator function');
@@ -165,8 +165,8 @@ Runtime.prototype.addApplication = function(startTime, func, args, output, baseT
   updateActivator(startTime);
 
   // add trigger to update activator
-  // if both func and args changed, func should be updated first, so we pass baseTopoOrder +'0' here
-  runtime.addTrigger(func, baseTopoOrder +'0', updateActivator);
+  // if both func and args changed, func should be updated first, so we pass baseTopoOrder+'0' here
+  runtime.addTrigger(func, baseTopoOrder+'0', updateActivator);
 
   // return function that removes anything set up by this activation
   return function() {
