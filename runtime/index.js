@@ -4,11 +4,11 @@ var PriorityQueue = require('./pq');
 
 var Runtime = function() {
   this.priorityQueue = new PriorityQueue();
-}
+};
 
 Runtime.prototype.createLexEnv = function(addProps) {
   return this.deriveLexEnv(null, addProps);
-}
+};
 
 Runtime.prototype.deriveLexEnv = function(parentLexEnv, addProps) {
   var propsObj = {};
@@ -20,7 +20,7 @@ Runtime.prototype.deriveLexEnv = function(parentLexEnv, addProps) {
   }
 
   return Object.create(parentLexEnv, propsObj);
-}
+};
 
 Runtime.prototype.createSlot = function() {
   return {
@@ -31,7 +31,7 @@ Runtime.prototype.createSlot = function() {
 
 Runtime.prototype.getSlotValue = function(slot) {
   return slot.value;
-}
+};
 
 Runtime.prototype.setSlotValue = function(slot, value, atTime) {
   slot.value = value;
@@ -85,16 +85,16 @@ Runtime.prototype.runToTime = function(toTime) {
     }
     this.runNextTask();
   }
-}
+};
 
 Runtime.prototype.runNextTask = function() {
   var nextTask = this.priorityQueue.pull(); // gets most "urgent" task
   nextTask.closure(nextTask.time);
-}
+};
 
 Runtime.prototype.isRunnable = function() {
   return !this.priorityQueue.isEmpty();
-}
+};
 
 Runtime.prototype.addApplication = function(startTime, func, args, output, baseTopoOrder, lexEnv) {
   // make closure for updating activation
