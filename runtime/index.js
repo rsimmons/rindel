@@ -57,15 +57,15 @@ Runtime.prototype.removeTrigger = function(slot, topoOrder, closure) {
   slot.triggers.splice(idx, 1);
 };
 
-// run until time of next task is _greater than_ untilTime
-Runtime.prototype.runUntilTime = function(untilTime) {
+// run until time of next task is _greater than_ toTime
+Runtime.prototype.runToTime = function(toTime) {
   while (true) {
     if (this.priorityQueue.isEmpty()) {
-      return;
+      return null;
     }
     var nextTask = this.priorityQueue.peek();
-    if (nextTask.time > untilTime) {
-      return;
+    if (nextTask.time > toTime) {
+      return nextTask.time;
     }
     this.runNextTask();
   }

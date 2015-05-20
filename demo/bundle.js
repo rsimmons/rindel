@@ -58,15 +58,15 @@ Runtime.prototype.removeTrigger = function(slot, topoOrder, closure) {
   slot.triggers.splice(idx, 1);
 };
 
-// run until time of next task is _greater than_ untilTime
-Runtime.prototype.runUntilTime = function(untilTime) {
+// run until time of next task is _greater than_ toTime
+Runtime.prototype.runToTime = function(toTime) {
   while (true) {
     if (this.priorityQueue.isEmpty()) {
-      return;
+      return null;
     }
     var nextTask = this.priorityQueue.peek();
-    if (nextTask.time > untilTime) {
-      return;
+    if (nextTask.time > toTime) {
+      return nextTask.time;
     }
     this.runNextTask();
   }
@@ -584,9 +584,81 @@ function liftN(func, arity) {
   };
 };
 
+function delay1(runtime, startTime, argSlots, outputSlot, baseTopoOrder) {
+  if (argSlots.length !== 1) {
+    throw new Error('got wrong number of arguments');
+  }
+
+  var argSlot = argSlots[0];
+  var scheduledChanges = []; // ordered list of {time: ..., value: ...}
+  var pendingOutputChangeTask = null;
+
+  // if needed, add task for updating output, and update our bookeeping
+  var updateTasks = function() {
+    if ((scheduledChanges.length > 0) && !pendingOutputChangeTask) {
+      var nextChange = scheduledChanges[0];
+      // TODO: this should probably call a method of runtime instead of accessing priorityQueue directly
+      // TODO: this call could get back a 'task handle' that we use to remove a pending task on deactivate
+      runtime.priorityQueue.insert({
+        time: nextChange.time,
+        topoOrder: baseTopoOrder,
+        closure: changeOutput,
+      });
+    }
+  };
+
+  // closure to be called when time has come to change output value
+  var changeOutput = function(atTime) {
+    if (scheduledChanges.length === 0) {
+      throw new Error('no changes to make');
+    }
+
+    // pull next change off 'front' of queue
+    var nextChange = scheduledChanges.shift();
+
+    // sanity check
+    if (atTime !== nextChange.time) {
+      throw new Error('times do not match');
+    }
+
+    runtime.setSlotValue(outputSlot, nextChange.value, atTime);
+
+    pendingOutputChangeTask = null;
+    updateTasks();
+  };
+
+  // make closure to be called when argument value changes
+  var argChanged = function(atTime) {
+    var argVal = runtime.getSlotValue(argSlot);
+    scheduledChanges.push({
+      time: atTime + 1.0, // here is the delay amount
+      value: argVal,
+    });
+
+    updateTasks();
+  };
+
+  // set initial output to be initial input
+  var argVal = runtime.getSlotValue(argSlot);
+  runtime.setSlotValue(outputSlot, argVal, startTime);
+
+  // add trigger on argument
+  runtime.addTrigger(argSlot, baseTopoOrder, argChanged);
+
+  // create and return deactivator closure, which removes created triggers
+  return function() {
+    runtime.removeTrigger(argSlot, baseTopoOrder, argChanged);
+    if (pendingOutputChangeTask) {
+      this.priorityQueue.remove(pendingOutputChangeTask);
+    }
+  };
+};
+
 module.exports = {
   add: liftN(function(a, b) { return a+b; }, 2),
   sub: liftN(function(a, b) { return a-b; }, 2),
+
+  delay1: delay1,
 };
 
 },{}],6:[function(require,module,exports){
@@ -598,6 +670,8 @@ var runtime = new Runtime();
 
 var add = runtime.createSlot();
 runtime.setSlotValue(add, runtime.primitives.add, 0);
+var delay1 = runtime.createSlot();
+runtime.setSlotValue(delay1, runtime.primitives.delay1, 0);
 
 var initialDateNow = Date.now();
 
@@ -608,15 +682,39 @@ runtime.setSlotValue(inputB, 0, 0);
 
 var finalOutput = runtime.createSlot();
 
-document.addEventListener('mousemove', function(e) {
-  var t = 0.001*(Date.now() - initialDateNow);
-  runtime.setSlotValue(inputA, e.clientX||e.pageX, t);
-  runtime.setSlotValue(inputB, e.clientY||e.pageY, t);
+function getMasterTime() {
+  return 0.001*(Date.now() - initialDateNow);
+}
 
-  runtime.runUntilTime(t);
+var timeoutID;
+
+// "run" the runtime as necessary
+function run() {
+  var t = getMasterTime();
+  var nextTime = runtime.runToTime(t);
+  // console.log(t, nextTime);
   console.log('output is now', runtime.getSlotValue(finalOutput));
+
+  if (nextTime && !timeoutID) {
+    timeoutID = window.setTimeout(function() {
+      timeoutID = null;
+      run();
+    }, 1000*(nextTime-t));
+  }
+}
+
+document.addEventListener('mousemove', function(e) {
+  var t = getMasterTime();
+  var mouseX = e.clientX||e.pageX;
+  var mouseY = e.clientY||e.pageY;
+  // console.log('mouse', t, mouseX, mouseY);
+  runtime.setSlotValue(inputA, mouseX, t);
+  // runtime.setSlotValue(inputB, mouseY, t);
+
+  run();
 }, false);
 
+/*
 function main(runtime, startTime, argSlots, outputSlot, baseTopoOrder) {
   if (argSlots.length !== 0) {
     throw new Error('called with wrong number of arguments');
@@ -630,19 +728,25 @@ function main(runtime, startTime, argSlots, outputSlot, baseTopoOrder) {
     $_unappOut();
   };
 }
+*/
+
+function main(runtime, startTime, argSlots, outputSlot, baseTopoOrder) {
+  if (argSlots.length !== 0) {
+    throw new Error('called with wrong number of arguments');
+  }
+
+  // add application for final output (slot already created)
+  var $_unappOut = runtime.addApplication(startTime, delay1, [inputA], outputSlot, baseTopoOrder+'1');
+
+  // create and return deactivator closure. it needs to undo any applications
+  return function() {
+    $_unappOut();
+  };
+}
 
 // assume main activator definition has been generated by compiler
 main(runtime, 0, [], finalOutput, '');
 
 console.log('initial output is', runtime.getSlotValue(finalOutput));
-
-/*
-while (true) {
-  // TODO: (optionally) modify input values
-  // TODO: determine next time to run until
-  runtime.runUntilTime(untilTime);
-  // TODO: witness changes to finalOutput value
-}
-*/
 
 },{"../runtime":1}]},{},[6]);
