@@ -92,6 +92,10 @@ Runtime.prototype.runNextTask = function() {
   nextTask.closure(nextTask.time);
 }
 
+Runtime.prototype.isRunnable = function() {
+  return !this.priorityQueue.isEmpty();
+}
+
 Runtime.prototype.addApplication = function(startTime, func, args, output, baseTopoOrder, lexEnv) {
   // make closure for updating activation
   var deactivator;

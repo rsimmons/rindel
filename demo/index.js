@@ -27,7 +27,11 @@ function getMasterTime() {
 var timeoutID;
 
 // "run" the runtime as necessary
-function run() {
+function tryRunning() {
+  if (!runtime.isRunnable()) {
+    return;
+  }
+
   var t = getMasterTime();
   var nextTime = runtime.runToTime(t);
   // console.log(t, nextTime);
@@ -36,7 +40,7 @@ function run() {
   if (nextTime && !timeoutID) {
     timeoutID = window.setTimeout(function() {
       timeoutID = null;
-      run();
+      tryRunning();
     }, 1000*(nextTime-t));
   }
 }
@@ -49,7 +53,7 @@ document.addEventListener('mousemove', function(e) {
   runtime.setSlotValue(lexEnv.inputA, mouseX, t);
   runtime.setSlotValue(lexEnv.inputB, mouseY, t);
 
-  run();
+  tryRunning();
 }, false);
 
 // require demo programs
@@ -60,3 +64,5 @@ var prog1 = require('./progs/prog1');
 prog1.main(runtime, 0, [], finalOutput, '', lexEnv);
 
 console.log('initial output is', runtime.getSlotValue(finalOutput));
+
+tryRunning();
