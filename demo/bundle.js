@@ -16,6 +16,7 @@ function main(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv) {
 }
 
 module.exports = {
+  code: 'yield mouseX + mouseY',
   main: main,
 };
 
@@ -37,6 +38,7 @@ function main(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv) {
 }
 
 module.exports = {
+  code: 'yield delay1(mouseX)',
   main: main,
 };
 

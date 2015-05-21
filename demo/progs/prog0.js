@@ -15,5 +15,6 @@ function main(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv) {
 }
 
 module.exports = {
+  code: 'yield mouseX + mouseY',
   main: main,
 };
