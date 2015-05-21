@@ -15,7 +15,11 @@ Runtime.prototype.deriveLexEnv = function(parentLexEnv, addProps) {
 
   for (var k in addProps) {
     if (addProps.hasOwnProperty(k)) {
-      propsObj[k] = {value: addProps[k], writeable: false};
+      propsObj[k] = {
+        value: addProps[k],
+        writeable: false,
+        enumerable: true,
+      };
     }
   }
 

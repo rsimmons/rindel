@@ -48,11 +48,13 @@ function delay1(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv)
       var nextChange = scheduledChanges[0];
       // TODO: this should probably call a method of runtime instead of accessing priorityQueue directly
       // TODO: this call could get back a 'task handle' that we use to remove a pending task on deactivate
-      runtime.priorityQueue.insert({
+      var changeTask = {
         time: nextChange.time,
         topoOrder: baseTopoOrder,
         closure: changeOutput,
-      });
+      };
+      runtime.priorityQueue.insert(changeTask);
+      pendingOutputChangeTask = changeTask;
     }
   };
 
@@ -98,7 +100,7 @@ function delay1(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv)
   return function() {
     runtime.removeTrigger(argSlot, baseTopoOrder, argChanged);
     if (pendingOutputChangeTask) {
-      this.priorityQueue.remove(pendingOutputChangeTask);
+      runtime.priorityQueue.remove(pendingOutputChangeTask);
     }
   };
 };
