@@ -6,3 +6,39 @@ html, body {
 body {
   font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
 }
+
+#main {
+  font-size: 18px;
+}
+
+#demos-column {
+  float: left;
+  width: 200px;
+  padding: 10px;
+}
+
+#code-column {
+  padding: 10px;
+}
+
+#code-column-code {
+  font-family: Consolas, Monaco, 'Andale Mono', monospace;
+  font-size: 16px;
+  margin: 0;
+}
+
+#demos-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.demo-choice {
+  cursor: pointer;
+  color: #617DFF;
+}
+
+.demo-choice:hover {
+  text-decoration: underline;
+  background-color: #f5f2f0;
+}
