@@ -7,8 +7,19 @@ body {
   font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
 }
 
+.inline-code {
+  font-family: Consolas, Monaco, 'Andale Mono', monospace;
+  color: rgb(155, 27, 27);
+}
+
 #main {
   font-size: 18px;
+}
+
+#explanation {
+  margin: 10px 0 10px 10px;
+  width: 500px;
+  text-align: justify;
 }
 
 #demos-column {
