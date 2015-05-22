@@ -807,6 +807,7 @@ document.addEventListener('mousemove', function(e) {
   // console.log('mouse', t, mouseX, mouseY);
   runtime.setSlotValue(rootLexEnv.mouseX, inputValues.mouseX, t);
   runtime.setSlotValue(rootLexEnv.mouseY, inputValues.mouseY, t);
+  runtime.setSlotValue(rootLexEnv.mousePos, {x: inputValues.mouseX, y: inputValues.mouseY}, t);
 
   tryRunning();
 }, false);
@@ -846,12 +847,14 @@ function startDemoProg(prog) {
     delay1: runtime.createSlot(),
     mouseX: runtime.createSlot(),
     mouseY: runtime.createSlot(),
+    mousePos: runtime.createSlot(),
   });
 
   runtime.setSlotValue(rootLexEnv.add, runtime.primitives.add, 0);
   runtime.setSlotValue(rootLexEnv.delay1, runtime.primitives.delay1, 0);
   runtime.setSlotValue(rootLexEnv.mouseX, inputValues.mouseX, 0);
   runtime.setSlotValue(rootLexEnv.mouseY, inputValues.mouseY, 0);
+  runtime.setSlotValue(rootLexEnv.mousePos, {x: inputValues.mouseX, y: inputValues.mouseY}, 0);
 
   finalOutput = runtime.createSlot()
   runtime.addTrigger(finalOutput, '1', function(atTime) {
@@ -862,6 +865,8 @@ function startDemoProg(prog) {
     var squareElem = document.getElementById('square');
     squareElem.style.left = (outputVal - 17) + 'px';
     squareElem.style.top = '100px';
+    // squareElem.style.left = (outputVal.x - 17) + 'px';
+    // squareElem.style.top = (outputVal.y - 17) + 'px';
   });
 
   document.getElementById('code-column-code').textContent = prog.code;
