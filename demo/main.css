@@ -42,3 +42,11 @@ body {
   text-decoration: underline;
   background-color: #f5f2f0;
 }
+
+#square {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  background-color: orange;
+  border: 2px solid #666;
+}

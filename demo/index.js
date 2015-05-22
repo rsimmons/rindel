@@ -27,7 +27,11 @@ function tryRunning() {
   var t = getMasterTime();
   var nextTime = runtime.runToTime(t);
   // console.log(t, nextTime);
-  console.log('output is now', runtime.getSlotValue(finalOutput));
+  var outputVal = runtime.getSlotValue(finalOutput)
+  console.log('output is now', outputVal);
+  var squareElem = document.getElementById('square');
+  squareElem.style.left = (outputVal - 17) + 'px';
+  squareElem.style.top = '100px';
 
   if (nextTime && !timeoutID) {
     timeoutID = window.setTimeout(function() {
