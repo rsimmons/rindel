@@ -897,11 +897,19 @@ function createDemoControls() {
     demos[k].preElem = pe;
 */
   }
+  demosListElem.firstChild.classList.add('demo-active');
 
   document.addEventListener('click', function(e) {
     if (e.target.className === 'demo-choice') {
+      // update UI
+      for (var i = 0; i < demosListElem.childNodes.length; i++) {
+        demosListElem.childNodes[i].classList.remove('demo-active');
+      }
+      e.target.classList.add('demo-active');
+
+      // run program
       var name = e.target.textContent;
-      var prog = demoProgs[name]
+      var prog = demoProgs[name];
       startDemoProg(prog);
     }
   }, false);

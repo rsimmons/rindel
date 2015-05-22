@@ -58,6 +58,10 @@ body {
   background-color: #eee;
 }
 
+.demo-active {
+  background-color: #BAEA87 !important;
+}
+
 #square {
   position: absolute;
   width: 30px;
