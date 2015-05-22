@@ -774,6 +774,10 @@ var rootLexEnv;
 var finalOutput;
 var timeoutID;
 var currentDeactivator;
+var inputValues = {
+  mouseX: 0,
+  mouseY: 0,
+}
 
 function getMasterTime() {
   return 0.001*(Date.now() - initialDateNow);
@@ -798,11 +802,11 @@ function tryRunning() {
 
 document.addEventListener('mousemove', function(e) {
   var t = getMasterTime();
-  var mouseX = e.clientX||e.pageX;
-  var mouseY = e.clientY||e.pageY;
+  inputValues.mouseX = e.clientX||e.pageX;
+  inputValues.mouseY = e.clientY||e.pageY;
   // console.log('mouse', t, mouseX, mouseY);
-  runtime.setSlotValue(rootLexEnv.mouseX, mouseX, t);
-  runtime.setSlotValue(rootLexEnv.mouseY, mouseY, t);
+  runtime.setSlotValue(rootLexEnv.mouseX, inputValues.mouseX, t);
+  runtime.setSlotValue(rootLexEnv.mouseY, inputValues.mouseY, t);
 
   tryRunning();
 }, false);
@@ -846,8 +850,8 @@ function startDemoProg(prog) {
 
   runtime.setSlotValue(rootLexEnv.add, runtime.primitives.add, 0);
   runtime.setSlotValue(rootLexEnv.delay1, runtime.primitives.delay1, 0);
-  runtime.setSlotValue(rootLexEnv.mouseX, 0, 0);
-  runtime.setSlotValue(rootLexEnv.mouseY, 0, 0);
+  runtime.setSlotValue(rootLexEnv.mouseX, inputValues.mouseX, 0);
+  runtime.setSlotValue(rootLexEnv.mouseY, inputValues.mouseY, 0);
 
   finalOutput = runtime.createSlot()
   runtime.addTrigger(finalOutput, '1', function(atTime) {
