@@ -3,8 +3,8 @@
 var Runtime = require('../runtime');
 
 var demoProgs = {
-  prog0: require('./progs/prog0'),
-  prog1: require('./progs/prog1'),
+  'same position': require('./progs/prog0'),
+  'delayed position': require('./progs/prog1'),
 };
 
 var initialDateNow = Date.now();
@@ -149,5 +149,5 @@ function createDemoControls() {
 document.addEventListener('DOMContentLoaded', function() {
   createDemoControls();
 
-  startDemoProg(demoProgs.prog0);
+  startDemoProg(demoProgs['same position']);
 });
