@@ -808,6 +808,7 @@ var currentResult;
 var inputValues = {
   mouseX: 0,
   mouseY: 0,
+  mouseDown: false,
 }
 var internals;
 
@@ -845,6 +846,25 @@ document.addEventListener('mousemove', function(e) {
 
   tryRunning();
 }, false);
+
+document.addEventListener('mousedown', function(e) {
+  if (e.button === 0) {
+    var t = getMasterTime();
+    inputValues.mouseDown = true;
+    runtime.setSlotValue(rootLexEnv.mouseDown, inputValues.mouseDown, t);
+    tryRunning();
+  }
+}, false);
+
+document.addEventListener('mouseup', function(e) {
+  if (e.button === 0) {
+    var t = getMasterTime();
+    inputValues.mouseDown = false;
+    runtime.setSlotValue(rootLexEnv.mouseDown, inputValues.mouseDown, t);
+    tryRunning();
+  }
+}, false);
+
 
 function updateInternalsDisplay() {
   var internalsText = [];
@@ -911,6 +931,7 @@ function startDemoProg(prog) {
     mouseX: runtime.createSlot(),
     mouseY: runtime.createSlot(),
     mousePos: runtime.createSlot(),
+    mouseDown: runtime.createSlot(),
   });
 
   runtime.setSlotValue(rootLexEnv.add, runtime.primitives.add, 0);
@@ -918,6 +939,7 @@ function startDemoProg(prog) {
   runtime.setSlotValue(rootLexEnv.mouseX, inputValues.mouseX, 0);
   runtime.setSlotValue(rootLexEnv.mouseY, inputValues.mouseY, 0);
   runtime.setSlotValue(rootLexEnv.mousePos, {x: inputValues.mouseX, y: inputValues.mouseY}, 0);
+  runtime.setSlotValue(rootLexEnv.mouseDown, inputValues.mouseDown, 0);
 
   document.getElementById('code-column-code').textContent = prog.code;
 
