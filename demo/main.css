@@ -62,6 +62,12 @@ body {
   background-color: #BAEA87 !important;
 }
 
+#internals-column {
+  padding: 10px;
+  float: left;
+  width: 300px;
+}
+
 #square {
   position: absolute;
   width: 30px;
