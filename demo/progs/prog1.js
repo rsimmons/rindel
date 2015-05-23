@@ -5,8 +5,6 @@ function main(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
     throw new Error('called with wrong number of arguments');
   }
 
-  var outputSlot = runtime.createSlot();
-
   // add application for final output
   var $_outResult = runtime.addApplication(startTime, lexEnv.delay1, [lexEnv.mousePos], baseTopoOrder+'1');
 
