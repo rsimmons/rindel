@@ -14,10 +14,11 @@ body {
 
 #main {
   font-size: 18px;
+  margin-left: 20px;
 }
 
 #explanation {
-  margin: 10px 0 10px 10px;
+  margin: 10px 0 30px 0;
   width: 500px;
   text-align: justify;
 }
@@ -25,13 +26,18 @@ body {
 #demos-column {
   float: left;
   width: 200px;
-  padding: 10px;
+  margin-right: 20px;
 }
 
 #code-column {
-  padding: 10px;
   float: left;
   width: 600px;
+  margin-right: 20px;
+}
+
+#internals-column {
+  float: left;
+  width: 300px;
 }
 
 #code-column-code {
@@ -41,6 +47,12 @@ body {
   padding: 10px;
   background-color: #eee;
   white-space: pre-wrap;
+}
+
+#code-column-commentary {
+  text-align: justify;
+  font-size: 14px;
+  color: #555;
 }
 
 #demos-list {
@@ -61,12 +73,6 @@ body {
 
 .demo-active {
   background-color: #BAEA87 !important;
-}
-
-#internals-column {
-  padding: 10px;
-  float: left;
-  width: 300px;
 }
 
 #square {

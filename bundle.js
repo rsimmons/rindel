@@ -17,6 +17,7 @@ function main(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
 module.exports = {
   code: 'yield mousePos',
   main: main,
+  commentary: '<p>This program simply yields the mouse position unchanged, causing the square to be at the same position as the mouse.</p>',
 };
 
 },{}],2:[function(require,module,exports){
@@ -41,6 +42,7 @@ function main(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
 module.exports = {
   code: 'yield delay1(mousePos)',
   main: main,
+  commentary: '<p>This program yields the mouse position delayed by 1 second. Note the behavior of the "JS timeout outstanding" value on the left, as you alternately move the mouse and stop moving it for a bit. If there are "buffered" mouse movements still to be played out, there is a timeout set for those. If the mouse has been still for a least one second, no changes will be buffered and so no timeout will be set.</p><p>Also note, if you quickly move the pointer and click to start this same program again, the square jumps to match the mouse position. This is because the delay1 function relays its initial input as its output for the first second.</p>',
 };
 
 },{}],3:[function(require,module,exports){
@@ -66,6 +68,7 @@ function main(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
 module.exports = {
   code: 'yield if mouseDown then mousePos else delay1(mousePos)',
   main: main,
+  commentary: '<p>This program switches between yielding the current mouse position and the delayed mouse position, based on whether the mouse button is down. Note that even if the mouse button is held down, the delayed position is computed. This is necessary to avoid "time leaks", i.e. we don\'t know when we\'ll need the value when the mouse button is released, so we must keep it up to date.</p>',
 };
 
 },{}],4:[function(require,module,exports){
@@ -974,6 +977,7 @@ function startDemoProg(prog) {
   runtime.setSlotValue(rootLexEnv.mouseDown, inputValues.mouseDown, 0);
 
   document.getElementById('code-column-code').textContent = prog.code;
+  document.getElementById('code-column-commentary').innerHTML = prog.commentary || '';
 
   // initialize internals
   internals = {
