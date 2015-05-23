@@ -6,6 +6,7 @@ var demoProgs = {
   'same position': require('./progs/prog0'),
   'delayed position': require('./progs/prog1'),
   'switch on button': require('./progs/prog2'),
+  'dynamic application': require('./progs/prog3'),
 };
 
 var initialDateNow = Date.now();
