@@ -8,7 +8,7 @@ function main(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
   var outputSlot = runtime.createSlot();
 
   // add application for final output
-  var $_outResult = runtime.addApplication(startTime, lexEnv.delay1, [lexEnv.mouseX], baseTopoOrder+'1');
+  var $_outResult = runtime.addApplication(startTime, lexEnv.delay1, [lexEnv.mousePos], baseTopoOrder+'1');
 
   return {
     outputSlot: $_outResult.outputSlot,
@@ -19,6 +19,6 @@ function main(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
 }
 
 module.exports = {
-  code: 'yield delay1(mouseX)',
+  code: 'yield delay1(mousePos)',
   main: main,
 };

@@ -5,20 +5,15 @@ function main(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
     throw new Error('called with wrong number of arguments');
   }
 
-  var outputSlot = runtime.createSlot();
-
-  // add application for final output
-  var $_outResult = runtime.addApplication(startTime, lexEnv.add, [lexEnv.mouseX, lexEnv.mouseY], baseTopoOrder+'1');
-
   return {
-    outputSlot: $_outResult.outputSlot,
+    outputSlot: lexEnv.mousePos,
     deactivator: function() {
-      $_outResult.deactivator();
+      // nothing to deactivate
     },
   };
 }
 
 module.exports = {
-  code: 'yield mouseX + mouseY',
+  code: 'yield mousePos',
   main: main,
 };
