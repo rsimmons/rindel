@@ -138,6 +138,7 @@ function startDemoProg(prog) {
     add: runtime.createSlot(),
     delay1: runtime.createSlot(),
     ifte: runtime.createSlot(),
+    id: runtime.createSlot(),
 
     mouseX: runtime.createSlot(),
     mouseY: runtime.createSlot(),
@@ -149,6 +150,7 @@ function startDemoProg(prog) {
   runtime.setSlotValue(rootLexEnv.add, runtime.primitives.add, 0);
   runtime.setSlotValue(rootLexEnv.delay1, runtime.primitives.delay1, 0);
   runtime.setSlotValue(rootLexEnv.ifte, runtime.primitives.ifte, 0);
+  runtime.setSlotValue(rootLexEnv.id, runtime.primitives.id, 0);
 
   // inputs
   runtime.setSlotValue(rootLexEnv.mouseX, inputValues.mouseX, 0);

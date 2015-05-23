@@ -133,6 +133,7 @@ module.exports = {
   add: liftN(function(a, b) { return a+b; }, 2),
   sub: liftN(function(a, b) { return a-b; }, 2),
   ifte: liftN(function(a, b, c) { return a ? b : c; }, 3),
+  id: liftN(function(a) { return a; }, 1),
 
   delay1: delay1,
 };
