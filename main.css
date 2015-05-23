@@ -1,0 +1,79 @@
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
+}
+
+.inline-code {
+  font-family: Consolas, Monaco, 'Andale Mono', monospace;
+  color: rgb(155, 27, 27);
+}
+
+#main {
+  font-size: 18px;
+}
+
+#explanation {
+  margin: 10px 0 10px 10px;
+  width: 500px;
+  text-align: justify;
+}
+
+#demos-column {
+  float: left;
+  width: 200px;
+  padding: 10px;
+}
+
+#code-column {
+  padding: 10px;
+  float: left;
+  width: 500px;
+}
+
+#code-column-code {
+  font-family: Consolas, Monaco, 'Andale Mono', monospace;
+  font-size: 16px;
+  margin: 0;
+  padding: 10px;
+  background-color: #eee;
+}
+
+#demos-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.demo-choice {
+  cursor: pointer;
+  color: #617DFF;
+}
+
+.demo-choice:hover {
+  text-decoration: underline;
+  background-color: #eee;
+}
+
+.demo-active {
+  background-color: #BAEA87 !important;
+}
+
+#internals-column {
+  padding: 10px;
+  float: left;
+  width: 300px;
+}
+
+#square {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  background-color: orange;
+  border: 2px solid #666;
+  left: -100px;
+  right: -100px;
+}

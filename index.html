@@ -1,0 +1,25 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Temporal Splendor Demo</title>
+  <link href="main.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+<div id="main">
+  <p id="explanation">
+    In all of these short demo programs, the yielded output value stream is of type <span class="inline-code">Vec2</span> (a point with (x,y) coordinates). This changing output value is visualized by drawing a square at those yielded coordinates. The input values provided (bound in the global environment) are the <span class="inline-code">Vec2</span>-stream <span class="inline-code">mousePos</span> and the <span class="inline-code">bool</span>-stream <span class="inline-code">mouseDown</span>.
+  </p>
+  <div id="demos-column">
+    <ul id="demos-list"></ul>
+  </div>
+  <div id="code-column">
+    <pre id="code-column-code"></pre>
+  </div>
+  <div id="internals-column">
+  </div>
+</div>
+<div id="square"></div>
+<script src="bundle.js"></script>
+</body>
+</html>
