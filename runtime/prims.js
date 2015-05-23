@@ -132,6 +132,7 @@ function delay1(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
 module.exports = {
   add: liftN(function(a, b) { return a+b; }, 2),
   sub: liftN(function(a, b) { return a-b; }, 2),
+  ifte: liftN(function(a, b, c) { return a ? b : c; }, 3),
 
   delay1: delay1,
 };
