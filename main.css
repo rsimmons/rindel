@@ -31,7 +31,7 @@ body {
 #code-column {
   padding: 10px;
   float: left;
-  width: 500px;
+  width: 600px;
 }
 
 #code-column-code {
@@ -40,6 +40,7 @@ body {
   margin: 0;
   padding: 10px;
   background-color: #eee;
+  white-space: pre-wrap;
 }
 
 #demos-list {
