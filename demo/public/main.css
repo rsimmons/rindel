@@ -13,7 +13,7 @@ body {
 }
 
 #main {
-  font-size: 18px;
+  font-size: 16px;
   margin-left: 20px;
 }
 
@@ -27,6 +27,7 @@ body {
   float: left;
   width: 200px;
   margin-right: 20px;
+  font-size: 20px;
 }
 
 #code-column {
@@ -42,7 +43,7 @@ body {
 
 #code-column-code {
   font-family: Consolas, Monaco, 'Andale Mono', monospace;
-  font-size: 16px;
+  font-size: 18px;
   margin: 0;
   padding: 10px;
   background-color: #eee;
@@ -51,7 +52,6 @@ body {
 
 #code-column-commentary {
   text-align: justify;
-  font-size: 14px;
   color: #555;
 }
 
