@@ -5,9 +5,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build-prod": "NODE_ENV=production browserify index.js | uglifyjs -mc > bundle.js",
-    "build": "browserify index.js > bundle.js",
-    "watch": "watchify index.js -o bundle.js -v",
+    "build-prod": "NODE_ENV=production browserify index.js | uglifyjs -mc > public/bundle.js",
+    "build": "browserify index.js > public/bundle.js",
+    "watch": "watchify index.js -o public/bundle.js -v",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Russel Simmons <russ@rsimmons.org>",
