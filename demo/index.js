@@ -5,6 +5,7 @@ var Runtime = require('../runtime');
 var demoProgs = {
   'same position': require('./progs/prog0'),
   'delayed position': require('./progs/prog1'),
+  'switch on button': require('./progs/prog2'),
 };
 
 var initialDateNow = Date.now();
@@ -60,6 +61,7 @@ document.addEventListener('mousedown', function(e) {
     inputValues.mouseDown = true;
     runtime.setSlotValue(rootLexEnv.mouseDown, inputValues.mouseDown, t);
     tryRunning();
+    e.preventDefault();
   }
 }, false);
 
@@ -135,14 +137,20 @@ function startDemoProg(prog) {
   rootLexEnv = runtime.createLexEnv({
     add: runtime.createSlot(),
     delay1: runtime.createSlot(),
+    ifte: runtime.createSlot(),
+
     mouseX: runtime.createSlot(),
     mouseY: runtime.createSlot(),
     mousePos: runtime.createSlot(),
     mouseDown: runtime.createSlot(),
   });
 
+  // builtin functions
   runtime.setSlotValue(rootLexEnv.add, runtime.primitives.add, 0);
   runtime.setSlotValue(rootLexEnv.delay1, runtime.primitives.delay1, 0);
+  runtime.setSlotValue(rootLexEnv.ifte, runtime.primitives.ifte, 0);
+
+  // inputs
   runtime.setSlotValue(rootLexEnv.mouseX, inputValues.mouseX, 0);
   runtime.setSlotValue(rootLexEnv.mouseY, inputValues.mouseY, 0);
   runtime.setSlotValue(rootLexEnv.mousePos, {x: inputValues.mouseX, y: inputValues.mouseY}, 0);
