@@ -157,6 +157,7 @@ function startDemoProg(prog) {
   runtime.setSlotValue(rootLexEnv.mouseDown, inputValues.mouseDown, 0);
 
   document.getElementById('code-column-code').textContent = prog.code;
+  document.getElementById('code-column-commentary').innerHTML = prog.commentary || '';
 
   // initialize internals
   internals = {
