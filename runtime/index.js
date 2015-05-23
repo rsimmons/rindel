@@ -91,10 +91,12 @@ Runtime.prototype.isRunnable = function() {
   return !this.priorityQueue.isEmpty();
 };
 
-Runtime.prototype.addApplication = function(startTime, func, args, output, baseTopoOrder, lexEnv) {
+Runtime.prototype.addApplication = function(startTime, func, args, baseTopoOrder, lexEnv) {
   // make closure for updating activation
   var deactivator;
   var runtime = this;
+  var outputSlot = runtime.createSlot();
+
   function updateActivator(atTime) {
     // deactivate old activation, if this isn't first time
     if (deactivator !== undefined) {
@@ -104,12 +106,24 @@ Runtime.prototype.addApplication = function(startTime, func, args, output, baseT
     // get activator function from slot
     var activator = runtime.getSlotValue(func);
 
-    // call new activator, updating deactivator
-    deactivator = activator(runtime, atTime, args, output, baseTopoOrder, lexEnv);
+    // call new activator
+    var result = activator(runtime, atTime, args, baseTopoOrder, lexEnv);
 
-    if (deactivator === undefined) {
-      throw new Error('activator did not return deactivator function');
+    if (result === undefined) {
+      throw new Error('activator did not return result');
     }
+
+    // update current deactivator
+    deactivator = result.deactivator;
+
+    // do first copy of 'internal' output to 'external' output
+    runtime.setSlotValue(outputSlot, runtime.getSlotValue(result.outputSlot), atTime);
+
+    // set trigger to copy output of current activation to output of this application
+    runtime.addTrigger(result.outputSlot, function(atTime) {
+      // copy value from 'internal' output to 'external' output
+      runtime.setSlotValue(outputSlot, runtime.getSlotValue(result.outputSlot), atTime);
+    });
   }
 
   // do first update
@@ -118,11 +132,13 @@ Runtime.prototype.addApplication = function(startTime, func, args, output, baseT
   // add trigger to update activator
   runtime.addTrigger(func, updateActivator);
 
-  // return function that removes anything set up by this activation
-  return function() {
-    runtime.removeTrigger(func, updateActivator);
-    deactivator();
-  }
+  return {
+    outputSlot: outputSlot,
+    deactivator: function() {
+      runtime.removeTrigger(func, updateActivator);
+      deactivator();
+    },
+  };
 };
 
 Runtime.prototype.primitives = require('./prims');

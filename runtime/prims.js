@@ -1,10 +1,12 @@
 'use strict';
 
 function liftN(func, arity) {
-  return function(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv) {
+  return function(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
     if (argSlots.length !== arity) {
       throw new Error('got wrong number of arguments');
     }
+
+    var outputSlot = runtime.createSlot();
 
     var updateTask = function(atTime) {
       var argVals = [];
@@ -25,26 +27,30 @@ function liftN(func, arity) {
     }
 
     // set initial output
-    updateTrigger(startTime);
+    updateTask(startTime);
 
     // add triggers
     for (var i = 0; i < arity; i++) {
       runtime.addTrigger(argSlots[i], updateTrigger);
     }
 
-    // create and return deactivator closure, which removes created triggers
-    return function() {
-      for (var i = 0; i < arity; i++) {
-        runtime.removeTrigger(argSlots[i], updateTrigger);
-      }
+    return {
+      outputSlot: outputSlot,
+      deactivator: function() {
+        for (var i = 0; i < arity; i++) {
+          runtime.removeTrigger(argSlots[i], updateTrigger);
+        }
+      },
     };
   };
 };
 
-function delay1(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv) {
+function delay1(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
   if (argSlots.length !== 1) {
     throw new Error('got wrong number of arguments');
   }
+
+  var outputSlot = runtime.createSlot();
 
   var argSlot = argSlots[0];
   var scheduledChanges = []; // ordered list of {time: ..., value: ...}
@@ -112,12 +118,14 @@ function delay1(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv)
   // add trigger on argument
   runtime.addTrigger(argSlot, argChangedTrigger);
 
-  // create and return deactivator closure, which removes created triggers
-  return function() {
-    runtime.removeTrigger(argSlot, argChangedTrigger);
-    if (pendingOutputChangeTask) {
-      runtime.priorityQueue.remove(pendingOutputChangeTask);
-    }
+  return {
+    outputSlot: outputSlot,
+    deactivator: function() {
+      runtime.removeTrigger(argSlot, argChangedTrigger);
+      if (pendingOutputChangeTask) {
+        runtime.priorityQueue.remove(pendingOutputChangeTask);
+      }
+    },
   };
 };
 

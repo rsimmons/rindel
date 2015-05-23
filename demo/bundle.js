@@ -1,17 +1,21 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 'use strict';
 
-function main(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv) {
+function main(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
   if (argSlots.length !== 0) {
     throw new Error('called with wrong number of arguments');
   }
 
-  // add application for final output (slot already created)
-  var $_unappOut = runtime.addApplication(startTime, lexEnv.add, [lexEnv.mouseX, lexEnv.mouseY], outputSlot, baseTopoOrder+'1');
+  var outputSlot = runtime.createSlot();
 
-  // create and return deactivator closure. it needs to undo any applications
-  return function() {
-    $_unappOut();
+  // add application for final output
+  var $_outResult = runtime.addApplication(startTime, lexEnv.add, [lexEnv.mouseX, lexEnv.mouseY], baseTopoOrder+'1');
+
+  return {
+    outputSlot: $_outResult.outputSlot,
+    deactivator: function() {
+      $_outResult.deactivator();
+    },
   };
 }
 
@@ -23,17 +27,21 @@ module.exports = {
 },{}],2:[function(require,module,exports){
 'use strict';
 
-function main(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv) {
+function main(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
   if (argSlots.length !== 0) {
     throw new Error('called with wrong number of arguments');
   }
 
-  // add application for final output (slot already created)
-  var $_unappOut = runtime.addApplication(startTime, lexEnv.delay1, [lexEnv.mouseX], outputSlot, baseTopoOrder+'1');
+  var outputSlot = runtime.createSlot();
 
-  // create and return deactivator closure. it needs to undo any applications
-  return function() {
-    $_unappOut();
+  // add application for final output
+  var $_outResult = runtime.addApplication(startTime, lexEnv.delay1, [lexEnv.mouseX], baseTopoOrder+'1');
+
+  return {
+    outputSlot: $_outResult.outputSlot,
+    deactivator: function() {
+      $_outResult.deactivator();
+    },
   };
 }
 
@@ -136,10 +144,12 @@ Runtime.prototype.isRunnable = function() {
   return !this.priorityQueue.isEmpty();
 };
 
-Runtime.prototype.addApplication = function(startTime, func, args, output, baseTopoOrder, lexEnv) {
+Runtime.prototype.addApplication = function(startTime, func, args, baseTopoOrder, lexEnv) {
   // make closure for updating activation
   var deactivator;
   var runtime = this;
+  var outputSlot = runtime.createSlot();
+
   function updateActivator(atTime) {
     // deactivate old activation, if this isn't first time
     if (deactivator !== undefined) {
@@ -149,12 +159,24 @@ Runtime.prototype.addApplication = function(startTime, func, args, output, baseT
     // get activator function from slot
     var activator = runtime.getSlotValue(func);
 
-    // call new activator, updating deactivator
-    deactivator = activator(runtime, atTime, args, output, baseTopoOrder, lexEnv);
+    // call new activator
+    var result = activator(runtime, atTime, args, baseTopoOrder, lexEnv);
 
-    if (deactivator === undefined) {
-      throw new Error('activator did not return deactivator function');
+    if (result === undefined) {
+      throw new Error('activator did not return result');
     }
+
+    // update current deactivator
+    deactivator = result.deactivator;
+
+    // do first copy of 'internal' output to 'external' output
+    runtime.setSlotValue(outputSlot, runtime.getSlotValue(result.outputSlot), atTime);
+
+    // set trigger to copy output of current activation to output of this application
+    runtime.addTrigger(result.outputSlot, function(atTime) {
+      // copy value from 'internal' output to 'external' output
+      runtime.setSlotValue(outputSlot, runtime.getSlotValue(result.outputSlot), atTime);
+    });
   }
 
   // do first update
@@ -163,11 +185,13 @@ Runtime.prototype.addApplication = function(startTime, func, args, output, baseT
   // add trigger to update activator
   runtime.addTrigger(func, updateActivator);
 
-  // return function that removes anything set up by this activation
-  return function() {
-    runtime.removeTrigger(func, updateActivator);
-    deactivator();
-  }
+  return {
+    outputSlot: outputSlot,
+    deactivator: function() {
+      runtime.removeTrigger(func, updateActivator);
+      deactivator();
+    },
+  };
 };
 
 Runtime.prototype.primitives = require('./prims');
@@ -636,10 +660,12 @@ module.exports = PriorityQueue;
 'use strict';
 
 function liftN(func, arity) {
-  return function(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv) {
+  return function(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
     if (argSlots.length !== arity) {
       throw new Error('got wrong number of arguments');
     }
+
+    var outputSlot = runtime.createSlot();
 
     var updateTask = function(atTime) {
       var argVals = [];
@@ -660,26 +686,30 @@ function liftN(func, arity) {
     }
 
     // set initial output
-    updateTrigger(startTime);
+    updateTask(startTime);
 
     // add triggers
     for (var i = 0; i < arity; i++) {
       runtime.addTrigger(argSlots[i], updateTrigger);
     }
 
-    // create and return deactivator closure, which removes created triggers
-    return function() {
-      for (var i = 0; i < arity; i++) {
-        runtime.removeTrigger(argSlots[i], updateTrigger);
-      }
+    return {
+      outputSlot: outputSlot,
+      deactivator: function() {
+        for (var i = 0; i < arity; i++) {
+          runtime.removeTrigger(argSlots[i], updateTrigger);
+        }
+      },
     };
   };
 };
 
-function delay1(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv) {
+function delay1(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
   if (argSlots.length !== 1) {
     throw new Error('got wrong number of arguments');
   }
+
+  var outputSlot = runtime.createSlot();
 
   var argSlot = argSlots[0];
   var scheduledChanges = []; // ordered list of {time: ..., value: ...}
@@ -747,12 +777,14 @@ function delay1(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv)
   // add trigger on argument
   runtime.addTrigger(argSlot, argChangedTrigger);
 
-  // create and return deactivator closure, which removes created triggers
-  return function() {
-    runtime.removeTrigger(argSlot, argChangedTrigger);
-    if (pendingOutputChangeTask) {
-      runtime.priorityQueue.remove(pendingOutputChangeTask);
-    }
+  return {
+    outputSlot: outputSlot,
+    deactivator: function() {
+      runtime.removeTrigger(argSlot, argChangedTrigger);
+      if (pendingOutputChangeTask) {
+        runtime.priorityQueue.remove(pendingOutputChangeTask);
+      }
+    },
   };
 };
 
@@ -776,7 +808,6 @@ var demoProgs = {
 var initialDateNow = Date.now();
 var runtime;
 var rootLexEnv;
-var finalOutput;
 var timeoutID;
 var currentDeactivator;
 var inputValues = {
@@ -816,6 +847,16 @@ document.addEventListener('mousemove', function(e) {
 
   tryRunning();
 }, false);
+
+function visualizeOutput(value) {
+  console.log('output is', value);
+
+  var squareElem = document.getElementById('square');
+  squareElem.style.left = (value - 17) + 'px';
+  squareElem.style.top = '100px';
+  // squareElem.style.left = (value.x - 17) + 'px';
+  // squareElem.style.top = (value.y - 17) + 'px';
+}
 
 function startDemoProg(prog) {
   if (currentDeactivator) {
@@ -861,23 +902,17 @@ function startDemoProg(prog) {
   runtime.setSlotValue(rootLexEnv.mouseY, inputValues.mouseY, 0);
   runtime.setSlotValue(rootLexEnv.mousePos, {x: inputValues.mouseX, y: inputValues.mouseY}, 0);
 
-  finalOutput = runtime.createSlot();
-  runtime.addTrigger(finalOutput, function(atTime) {
-    var outputVal = runtime.getSlotValue(finalOutput);
-
-    console.log('output is now', outputVal);
-
-    var squareElem = document.getElementById('square');
-    squareElem.style.left = (outputVal - 17) + 'px';
-    squareElem.style.top = '100px';
-    // squareElem.style.left = (outputVal.x - 17) + 'px';
-    // squareElem.style.top = (outputVal.y - 17) + 'px';
-  });
-
   document.getElementById('code-column-code').textContent = prog.code;
 
   // assume main activator definition has been generated by compiler
-  currentDeactivator = prog.main(runtime, 0, [], finalOutput, '', rootLexEnv);
+  var result = prog.main(runtime, 0, [], '', rootLexEnv);
+  console.log('activated main');
+  visualizeOutput(result.outputSlot.value);
+  currentDeactivator = result.deactivator;
+
+  runtime.addTrigger(result.outputSlot, function(atTime) {
+    visualizeOutput(result.outputSlot.value);
+  });
 
   tryRunning();
 }
