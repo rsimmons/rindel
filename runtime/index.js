@@ -40,30 +40,21 @@ Runtime.prototype.getSlotValue = function(slot) {
 Runtime.prototype.setSlotValue = function(slot, value, atTime) {
   slot.value = value;
   for (var i = 0; i < slot.triggers.length; i++) {
-    var trig = slot.triggers[i];
-    this.priorityQueue.insert({
-      closure: trig.closure,
-      time: atTime,
-      topoOrder: trig.topoOrder,
-    });
+    slot.triggers[i](atTime);
   }
 };
 
-Runtime.prototype.addTrigger = function(slot, topoOrder, closure) {
-  slot.triggers.push({
-    topoOrder: topoOrder,
-    closure: closure,
-  });
+Runtime.prototype.addTrigger = function(slot, closure) {
+  slot.triggers.push(closure);
 };
 
-Runtime.prototype.removeTrigger = function(slot, topoOrder, closure) {
+Runtime.prototype.removeTrigger = function(slot, closure) {
   var idx;
 
   for (var i = 0; i < slot.triggers.length; i++) {
-    var trig = slot.triggers[i];
-    if ((trig.topoOrder === topoOrder) && (trig.closure === closure)) {
+    if (slot.triggers[i] === closure) {
       if (idx !== undefined) {
-        throw new Error('found two triggers with same topoOrder and closure');
+        throw new Error('found two identical triggers');
       }
       idx = i;
     }
@@ -114,8 +105,7 @@ Runtime.prototype.addApplication = function(startTime, func, args, output, baseT
     var activator = runtime.getSlotValue(func);
 
     // call new activator, updating deactivator
-    // if both func and args changed, func should be updated first, so we pass baseTopoOrder+'1' here
-    deactivator = activator(runtime, atTime, args, output, baseTopoOrder+'1', lexEnv);
+    deactivator = activator(runtime, atTime, args, output, baseTopoOrder, lexEnv);
 
     if (deactivator === undefined) {
       throw new Error('activator did not return deactivator function');
@@ -126,12 +116,11 @@ Runtime.prototype.addApplication = function(startTime, func, args, output, baseT
   updateActivator(startTime);
 
   // add trigger to update activator
-  // if both func and args changed, func should be updated first, so we pass baseTopoOrder+'0' here
-  runtime.addTrigger(func, baseTopoOrder+'0', updateActivator);
+  runtime.addTrigger(func, updateActivator);
 
   // return function that removes anything set up by this activation
   return function() {
-    runtime.removeTrigger(func, baseTopoOrder+'0', updateActivator);
+    runtime.removeTrigger(func, updateActivator);
     deactivator();
   }
 };

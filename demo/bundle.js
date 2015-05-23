@@ -85,30 +85,21 @@ Runtime.prototype.getSlotValue = function(slot) {
 Runtime.prototype.setSlotValue = function(slot, value, atTime) {
   slot.value = value;
   for (var i = 0; i < slot.triggers.length; i++) {
-    var trig = slot.triggers[i];
-    this.priorityQueue.insert({
-      closure: trig.closure,
-      time: atTime,
-      topoOrder: trig.topoOrder,
-    });
+    slot.triggers[i](atTime);
   }
 };
 
-Runtime.prototype.addTrigger = function(slot, topoOrder, closure) {
-  slot.triggers.push({
-    topoOrder: topoOrder,
-    closure: closure,
-  });
+Runtime.prototype.addTrigger = function(slot, closure) {
+  slot.triggers.push(closure);
 };
 
-Runtime.prototype.removeTrigger = function(slot, topoOrder, closure) {
+Runtime.prototype.removeTrigger = function(slot, closure) {
   var idx;
 
   for (var i = 0; i < slot.triggers.length; i++) {
-    var trig = slot.triggers[i];
-    if ((trig.topoOrder === topoOrder) && (trig.closure === closure)) {
+    if (slot.triggers[i] === closure) {
       if (idx !== undefined) {
-        throw new Error('found two triggers with same topoOrder and closure');
+        throw new Error('found two identical triggers');
       }
       idx = i;
     }
@@ -159,8 +150,7 @@ Runtime.prototype.addApplication = function(startTime, func, args, output, baseT
     var activator = runtime.getSlotValue(func);
 
     // call new activator, updating deactivator
-    // if both func and args changed, func should be updated first, so we pass baseTopoOrder+'1' here
-    deactivator = activator(runtime, atTime, args, output, baseTopoOrder+'1', lexEnv);
+    deactivator = activator(runtime, atTime, args, output, baseTopoOrder, lexEnv);
 
     if (deactivator === undefined) {
       throw new Error('activator did not return deactivator function');
@@ -171,12 +161,11 @@ Runtime.prototype.addApplication = function(startTime, func, args, output, baseT
   updateActivator(startTime);
 
   // add trigger to update activator
-  // if both func and args changed, func should be updated first, so we pass baseTopoOrder+'0' here
-  runtime.addTrigger(func, baseTopoOrder+'0', updateActivator);
+  runtime.addTrigger(func, updateActivator);
 
   // return function that removes anything set up by this activation
   return function() {
-    runtime.removeTrigger(func, baseTopoOrder+'0', updateActivator);
+    runtime.removeTrigger(func, updateActivator);
     deactivator();
   }
 };
@@ -652,28 +641,36 @@ function liftN(func, arity) {
       throw new Error('got wrong number of arguments');
     }
 
-    // make closure that updates value in outputSlot
-    var update = function(atTime) {
+    var updateTask = function(atTime) {
       var argVals = [];
       for (var i = 0; i < arity; i++) {
         argVals.push(runtime.getSlotValue(argSlots[i]));
       }
       var outVal = func.apply(null, argVals);
       runtime.setSlotValue(outputSlot, outVal, atTime);
+    };
+
+    // make closure that queues task to update value in outputSlot
+    var updateTrigger = function(atTime) {
+      runtime.priorityQueue.insert({
+        time: atTime,
+        topoOrder: baseTopoOrder,
+        closure: updateTask,
+      });
     }
 
     // set initial output
-    update(startTime);
+    updateTrigger(startTime);
 
     // add triggers
     for (var i = 0; i < arity; i++) {
-      runtime.addTrigger(argSlots[i], baseTopoOrder, update);
+      runtime.addTrigger(argSlots[i], updateTrigger);
     }
 
     // create and return deactivator closure, which removes created triggers
     return function() {
       for (var i = 0; i < arity; i++) {
-        runtime.removeTrigger(argSlots[i], baseTopoOrder, update);
+        runtime.removeTrigger(argSlots[i], updateTrigger);
       }
     };
   };
@@ -724,8 +721,7 @@ function delay1(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv)
     updateTasks();
   };
 
-  // make closure to be called when argument value changes
-  var argChanged = function(atTime) {
+  var argChangedTask = function(atTime) {
     var argVal = runtime.getSlotValue(argSlot);
     scheduledChanges.push({
       time: atTime + 1.0, // here is the delay amount
@@ -735,16 +731,25 @@ function delay1(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv)
     updateTasks();
   };
 
+  // make closure to add task when argument value changes
+  var argChangedTrigger = function(atTime) {
+    runtime.priorityQueue.insert({
+      time: atTime,
+      topoOrder: baseTopoOrder,
+      closure: argChangedTask,
+    });
+  };
+
   // set initial output to be initial input
   var argVal = runtime.getSlotValue(argSlot);
   runtime.setSlotValue(outputSlot, argVal, startTime);
 
   // add trigger on argument
-  runtime.addTrigger(argSlot, baseTopoOrder, argChanged);
+  runtime.addTrigger(argSlot, argChangedTrigger);
 
   // create and return deactivator closure, which removes created triggers
   return function() {
-    runtime.removeTrigger(argSlot, baseTopoOrder, argChanged);
+    runtime.removeTrigger(argSlot, argChangedTrigger);
     if (pendingOutputChangeTask) {
       runtime.priorityQueue.remove(pendingOutputChangeTask);
     }
@@ -856,8 +861,8 @@ function startDemoProg(prog) {
   runtime.setSlotValue(rootLexEnv.mouseY, inputValues.mouseY, 0);
   runtime.setSlotValue(rootLexEnv.mousePos, {x: inputValues.mouseX, y: inputValues.mouseY}, 0);
 
-  finalOutput = runtime.createSlot()
-  runtime.addTrigger(finalOutput, '1', function(atTime) {
+  finalOutput = runtime.createSlot();
+  runtime.addTrigger(finalOutput, function(atTime) {
     var outputVal = runtime.getSlotValue(finalOutput);
 
     console.log('output is now', outputVal);
@@ -872,7 +877,7 @@ function startDemoProg(prog) {
   document.getElementById('code-column-code').textContent = prog.code;
 
   // assume main activator definition has been generated by compiler
-  currentDeactivator = prog.main(runtime, 0, [], finalOutput, '0', rootLexEnv);
+  currentDeactivator = prog.main(runtime, 0, [], finalOutput, '', rootLexEnv);
 
   tryRunning();
 }
@@ -905,7 +910,7 @@ function createDemoControls() {
   demosListElem.firstChild.classList.add('demo-active');
 
   document.addEventListener('click', function(e) {
-    if (e.target.className === 'demo-choice') {
+    if (e.target.classList.contains('demo-choice')) {
       // update UI
       for (var i = 0; i < demosListElem.childNodes.length; i++) {
         demosListElem.childNodes[i].classList.remove('demo-active');

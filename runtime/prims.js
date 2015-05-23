@@ -6,28 +6,36 @@ function liftN(func, arity) {
       throw new Error('got wrong number of arguments');
     }
 
-    // make closure that updates value in outputSlot
-    var update = function(atTime) {
+    var updateTask = function(atTime) {
       var argVals = [];
       for (var i = 0; i < arity; i++) {
         argVals.push(runtime.getSlotValue(argSlots[i]));
       }
       var outVal = func.apply(null, argVals);
       runtime.setSlotValue(outputSlot, outVal, atTime);
+    };
+
+    // make closure that queues task to update value in outputSlot
+    var updateTrigger = function(atTime) {
+      runtime.priorityQueue.insert({
+        time: atTime,
+        topoOrder: baseTopoOrder,
+        closure: updateTask,
+      });
     }
 
     // set initial output
-    update(startTime);
+    updateTrigger(startTime);
 
     // add triggers
     for (var i = 0; i < arity; i++) {
-      runtime.addTrigger(argSlots[i], baseTopoOrder, update);
+      runtime.addTrigger(argSlots[i], updateTrigger);
     }
 
     // create and return deactivator closure, which removes created triggers
     return function() {
       for (var i = 0; i < arity; i++) {
-        runtime.removeTrigger(argSlots[i], baseTopoOrder, update);
+        runtime.removeTrigger(argSlots[i], updateTrigger);
       }
     };
   };
@@ -78,8 +86,7 @@ function delay1(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv)
     updateTasks();
   };
 
-  // make closure to be called when argument value changes
-  var argChanged = function(atTime) {
+  var argChangedTask = function(atTime) {
     var argVal = runtime.getSlotValue(argSlot);
     scheduledChanges.push({
       time: atTime + 1.0, // here is the delay amount
@@ -89,16 +96,25 @@ function delay1(runtime, startTime, argSlots, outputSlot, baseTopoOrder, lexEnv)
     updateTasks();
   };
 
+  // make closure to add task when argument value changes
+  var argChangedTrigger = function(atTime) {
+    runtime.priorityQueue.insert({
+      time: atTime,
+      topoOrder: baseTopoOrder,
+      closure: argChangedTask,
+    });
+  };
+
   // set initial output to be initial input
   var argVal = runtime.getSlotValue(argSlot);
   runtime.setSlotValue(outputSlot, argVal, startTime);
 
   // add trigger on argument
-  runtime.addTrigger(argSlot, baseTopoOrder, argChanged);
+  runtime.addTrigger(argSlot, argChangedTrigger);
 
   // create and return deactivator closure, which removes created triggers
   return function() {
-    runtime.removeTrigger(argSlot, baseTopoOrder, argChanged);
+    runtime.removeTrigger(argSlot, argChangedTrigger);
     if (pendingOutputChangeTask) {
       runtime.priorityQueue.remove(pendingOutputChangeTask);
     }
