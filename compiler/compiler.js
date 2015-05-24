@@ -35,7 +35,7 @@ function createNodesRefs(exprObj) {
   }
 }
 
-function compileFunction(paramNames, bodyParts, jsName) {
+function compileFunction(paramNames, bodyParts) {
   // verify that there is exactly one yield clause
   var yieldObj;
   for (var i = 0; i < bodyParts.length; i++) {
@@ -167,7 +167,7 @@ function compileFunction(paramNames, bodyParts, jsName) {
   var codeFragments = [];
 
   // this is sort of ghetto but will do for now
-  codeFragments.push('function ' + jsName + '(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {\n');
+  codeFragments.push('(function(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {\n');
   codeFragments.push('  if (argSlots.length !== ' + paramNames.length + ') { throw new Error(\'called with wrong number of arguments\'); }\n');
 
   function getNodeSlotExpr(node) {
@@ -221,7 +221,7 @@ function compileFunction(paramNames, bodyParts, jsName) {
 
   codeFragments.push('    }\n');
   codeFragments.push('  };\n');
-  codeFragments.push('}');
+  codeFragments.push('})');
 
   // join generated code fragments and return
   return codeFragments.join('');
@@ -232,7 +232,7 @@ function compile(sourceCode) {
   var topFuncBodyParts = parser.parse(sourceCode);
 
   // compile the top-level parts, treating them as implicitly wrapped in no-parameter "main" definition
-  var targetCode = compileFunction([], topFuncBodyParts, 'main');
+  var targetCode = compileFunction([], topFuncBodyParts);
 
   return targetCode;
 }

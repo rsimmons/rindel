@@ -1,6 +1,1142 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 'use strict';
 
+var parser = require('./parser.js');
+
+var NODE_APP = 1;
+var NODE_LEXENV = 2;
+
+var REF_UNRESOLVED = 1;
+var REF_RESOLVING = 2;
+var REF_RESOLVED = 3;
+
+// returns a 'ref' object
+function createNodesRefs(exprObj) {
+  if (exprObj.type == 'app') {
+    var funcRef = createNodesRefs(exprObj.funcExpr);
+    var argRefs = [];
+    for (var i = 0; i < exprObj.argList.length; i++) {
+      argRefs.push(createNodesRefs(exprObj.argList[i]));
+    }
+    return {
+      state: REF_RESOLVED,
+      node: {
+        type: NODE_APP,
+        funcRef: funcRef,
+        argRefs: argRefs,
+      },
+    };
+  } else if (exprObj.type == 'varIdent') {
+    return {
+      state: REF_UNRESOLVED,
+      ident: exprObj.ident,
+    };
+  } else {
+    throw new Error('Unexpected object found in AST');
+  }
+}
+
+function compileFunction(paramNames, bodyParts) {
+  // verify that there is exactly one yield clause
+  var yieldObj;
+  for (var i = 0; i < bodyParts.length; i++) {
+    var bp = bodyParts[i];
+    if (bp.type === 'yield') {
+      if (yieldObj) {
+        throw new Error('Multiple yield clauses found in function body');
+      }
+      yieldObj = bp;
+    }
+  }
+
+  if (!yieldObj) {
+    throw new Error('No yield clause found in function body');
+  }
+
+  // build explicit graph of two types of nodes:
+  // - nodes corresponding to slots in the lexical environment
+  // - nodes corresponding to local "register" slots we will create
+
+  // create node tree for yield expression
+  var outputNode = createNodesRefs(yieldObj.expr);
+
+  // create node trees for each binding
+  var locallyBoundNames = {}; // names bound in this function body mapped to refs (parameters are not considered bindings)
+  for (var i = 0; i < bodyParts.length; i++) {
+    var bp = bodyParts[i];
+    if (bp.type === 'binding') {
+      if (locallyBoundNames.hasOwnProperty(bp.ident)) {
+        throw new Error('Same name bound more than once');
+      }
+      locallyBoundNames[bp.ident] = createNodesRefs(bp.expr);
+    }
+  }
+
+  var usedLexEnvNames = {}; // mapping from names referred to in lexical environment to their nodes (NOT refs)
+
+  // resolve identifier to a node, and make sure any downstream refs are also resolved. returns node
+  function resolveIdentRecursive(ident) {
+    if (locallyBoundNames.hasOwnProperty(ident)) {
+      resolveRefRecursive(locallyBoundNames[ident]);
+      return locallyBoundNames[ident].node;
+    } else {
+      // assume name must refer to something defined in lexical environment
+      if (usedLexEnvNames.hasOwnProperty(ident)) {
+        // resolve to already-created lexenv node
+        return usedLexEnvNames[ident];
+      } else {
+        // TODO: check that this is a legitimate reference, i.e. ident is actually in lexical environment
+
+        var newNode = {
+          type: NODE_LEXENV,
+          ident: ident,
+        };
+        usedLexEnvNames[ident] = newNode;
+        return newNode;
+      }
+    }
+  }
+
+  // resolve given ref, and recursively resolve any refs found in downstream nodes. returns nothing
+  function resolveRefRecursive(ref) {
+    if (ref.state === REF_RESOLVED) {
+      // do nothing
+    } else if (ref.state === REF_RESOLVING) {
+      throw new Error('Circular binding');
+    } else if (ref.state === REF_UNRESOLVED) {
+      ref.state = REF_RESOLVING;
+      ref.node = resolveIdentRecursive(ref.ident);
+      ref.state = REF_RESOLVED;
+    } else {
+      throw new Error('Invalid ref state');
+    }
+
+    // now that node is ensured to be resolved, recursively make sure everything downstream from it is resolved
+    // TODO: it seems like there's duplicate work happening here. we could put flag on nodes to say that anything
+    //  downstream of it was already resolved?
+    if (ref.node.type === NODE_APP) {
+      resolveRefRecursive(ref.node.funcRef);
+      for (var i = 0; i < ref.node.argRefs.length; i++) {
+        resolveRefRecursive(ref.node.argRefs[i]);
+      }
+    } else if (ref.node.type === NODE_LEXENV) {
+      // nothing to resolve
+    } else {
+      throw new Error('Invalid node type');
+    }
+  }
+
+  // resolve references to either lexical environment or local bindings
+  resolveRefRecursive(outputNode);
+  for (var k in locallyBoundNames) {
+    resolveRefRecursive(locallyBoundNames[k]);
+  }
+
+  // DFS from outputNode to get toposorted list of nodes
+  var STATE_ENTERED = 1; // node has been entered in traversal, but not yet added to ordering
+  var STATE_ADDED = 2; // node has been added to ordering, and is "done"
+  var sortedNodes = [];
+  function toposortVisit(node) {
+    if (node.state === STATE_ENTERED) {
+      throw new Error('Cycle in binding/reference graph, can\'t toposort');
+    } else if (node.state === STATE_ADDED) {
+      // already taken care of
+      return;
+    }
+
+    node.state = STATE_ENTERED;
+
+    // visit any nodes this node depends on
+    if (node.type === NODE_APP) {
+      toposortVisit(node.funcRef.node);
+      for (var i = 0; i < node.argRefs.length; i++) {
+        toposortVisit(node.argRefs[i].node);
+      }
+    } else if (node.type === NODE_LEXENV) {
+      // nothing to do since leaf
+    } else {
+      throw new Error('Unexpected node type found during toposort');
+    }
+
+    // finally, add this node to sort order and update its state
+    sortedNodes.push(node);
+    node.state = STATE_ADDED;
+  }
+  toposortVisit(outputNode.node);
+
+  // begin code generation
+  var codeFragments = [];
+
+  // this is sort of ghetto but will do for now
+  codeFragments.push('(function(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {\n');
+  codeFragments.push('  if (argSlots.length !== ' + paramNames.length + ') { throw new Error(\'called with wrong number of arguments\'); }\n');
+
+  function getNodeSlotExpr(node) {
+    if (node.type === NODE_APP) {
+      return '$_' + node.topoOrder + '.outputSlot';
+    } else if (node.type === NODE_LEXENV) {
+      return 'lexEnv.' + node.ident;
+    } else {
+      throw new Error('Unexpected node type found in tree');
+    }
+  }
+
+  // iterate sorted nodes, doing some code generation
+  var deactivatorCalls = [];
+  var nextTopoIdx = 0;
+  for (var i = 0; i < sortedNodes.length; i++) {
+    var node = sortedNodes[i];
+    if (node.type === NODE_APP) {
+      node.topoOrder = nextTopoIdx;
+      nextTopoIdx++;
+
+      var funcSlotExpr = getNodeSlotExpr(node.funcRef.node);
+      var argSlotExprs = [];
+      for (var j = 0; j < node.argRefs.length; j++) {
+        argSlotExprs.push(getNodeSlotExpr(node.argRefs[j].node));
+      }
+
+      // TODO: MUST zero-pad topoOrder before adding to baseTopoOrder or bad bad things will happen in larger functions
+      codeFragments.push('  var $_' + node.topoOrder + ' = runtime.addApplication(startTime, ' + funcSlotExpr + ', [' + argSlotExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\');\n');
+
+      deactivatorCalls.push('$_' + node.topoOrder + '.deactivator()');
+    } else if (node.type === NODE_LEXENV) {
+      // do nothing
+    } else {
+      throw new Error('Unexpected node type found in tree');
+    }
+  }
+  // I don't think these actually need to be reversed for things to work correctly,
+  //  but it just seems appropriate.
+  deactivatorCalls.reverse();
+
+  // generate return statement
+  var outputSlotExpr = getNodeSlotExpr(sortedNodes[sortedNodes.length-1]);
+  codeFragments.push('  return {\n');
+  codeFragments.push('    outputSlot: ' + outputSlotExpr + ',\n');
+  codeFragments.push('    deactivator: function() {\n');
+
+  for (var i = 0; i < deactivatorCalls.length; i++) {
+    codeFragments.push('      ' + deactivatorCalls[i] + ';\n');
+  }
+
+  codeFragments.push('    }\n');
+  codeFragments.push('  };\n');
+  codeFragments.push('})');
+
+  // join generated code fragments and return
+  return codeFragments.join('');
+}
+
+function compile(sourceCode) {
+  // parse source code, to get our top-level AST structure, which is a list of "function body parts"
+  var topFuncBodyParts = parser.parse(sourceCode);
+
+  // compile the top-level parts, treating them as implicitly wrapped in no-parameter "main" definition
+  var targetCode = compileFunction([], topFuncBodyParts);
+
+  return targetCode;
+}
+
+module.exports = {
+  compile: compile,
+};
+
+},{"./parser.js":2}],2:[function(require,module,exports){
+module.exports = (function() {
+  /*
+   * Generated by PEG.js 0.8.0.
+   *
+   * http://pegjs.majda.cz/
+   */
+
+  function peg$subclass(child, parent) {
+    function ctor() { this.constructor = child; }
+    ctor.prototype = parent.prototype;
+    child.prototype = new ctor();
+  }
+
+  function SyntaxError(message, expected, found, offset, line, column) {
+    this.message  = message;
+    this.expected = expected;
+    this.found    = found;
+    this.offset   = offset;
+    this.line     = line;
+    this.column   = column;
+
+    this.name     = "SyntaxError";
+  }
+
+  peg$subclass(SyntaxError, Error);
+
+  function parse(input) {
+    var options = arguments.length > 1 ? arguments[1] : {},
+
+        peg$FAILED = {},
+
+        peg$startRuleFunctions = { start: peg$parsestart },
+        peg$startRuleFunction  = peg$parsestart,
+
+        peg$c0 = /^[ \t\n\r]/,
+        peg$c1 = { type: "class", value: "[ \\t\\n\\r]", description: "[ \\t\\n\\r]" },
+        peg$c2 = { type: "other", description: "whitespace" },
+        peg$c3 = [],
+        peg$c4 = peg$FAILED,
+        peg$c5 = /^[0-9]/,
+        peg$c6 = { type: "class", value: "[0-9]", description: "[0-9]" },
+        peg$c7 = null,
+        peg$c8 = "-",
+        peg$c9 = { type: "literal", value: "-", description: "\"-\"" },
+        peg$c10 = function() { return parseFloat(text()); },
+        peg$c11 = ".",
+        peg$c12 = { type: "literal", value: ".", description: "\".\"" },
+        peg$c13 = /^[_a-z]/i,
+        peg$c14 = { type: "class", value: "[_a-z]i", description: "[_a-z]i" },
+        peg$c15 = /^[_a-z0-9]/i,
+        peg$c16 = { type: "class", value: "[_a-z0-9]i", description: "[_a-z0-9]i" },
+        peg$c17 = function(first, rest) { return first + rest.join(''); },
+        peg$c18 = "yield",
+        peg$c19 = { type: "literal", value: "yield", description: "\"yield\"" },
+        peg$c20 = ",",
+        peg$c21 = { type: "literal", value: ",", description: "\",\"" },
+        peg$c22 = "=",
+        peg$c23 = { type: "literal", value: "=", description: "\"=\"" },
+        peg$c24 = "(",
+        peg$c25 = { type: "literal", value: "(", description: "\"(\"" },
+        peg$c26 = ")",
+        peg$c27 = { type: "literal", value: ")", description: "\")\"" },
+        peg$c28 = function(topBody) { return topBody; },
+        peg$c29 = function(parts) { return parts; },
+        peg$c30 = function(expr) { return {type: 'yield', expr: expr}; },
+        peg$c31 = function(ident, expr) { return {type: 'binding', ident: ident, expr: expr}; },
+        peg$c32 = function(initialExpr, argLists) { return nestAnyApplications(initialExpr, argLists); },
+        peg$c33 = function(expr) { return expr; },
+        peg$c34 = function(ident) { return {type: 'varIdent', ident: ident}; },
+        peg$c35 = function(argList) { return argList; },
+        peg$c36 = function(first, rest) { return [first].concat(rest); },
+        peg$c37 = function(expr) { return [expr]; },
+
+        peg$currPos          = 0,
+        peg$reportedPos      = 0,
+        peg$cachedPos        = 0,
+        peg$cachedPosDetails = { line: 1, column: 1, seenCR: false },
+        peg$maxFailPos       = 0,
+        peg$maxFailExpected  = [],
+        peg$silentFails      = 0,
+
+        peg$result;
+
+    if ("startRule" in options) {
+      if (!(options.startRule in peg$startRuleFunctions)) {
+        throw new Error("Can't start parsing from rule \"" + options.startRule + "\".");
+      }
+
+      peg$startRuleFunction = peg$startRuleFunctions[options.startRule];
+    }
+
+    function text() {
+      return input.substring(peg$reportedPos, peg$currPos);
+    }
+
+    function offset() {
+      return peg$reportedPos;
+    }
+
+    function line() {
+      return peg$computePosDetails(peg$reportedPos).line;
+    }
+
+    function column() {
+      return peg$computePosDetails(peg$reportedPos).column;
+    }
+
+    function expected(description) {
+      throw peg$buildException(
+        null,
+        [{ type: "other", description: description }],
+        peg$reportedPos
+      );
+    }
+
+    function error(message) {
+      throw peg$buildException(message, null, peg$reportedPos);
+    }
+
+    function peg$computePosDetails(pos) {
+      function advance(details, startPos, endPos) {
+        var p, ch;
+
+        for (p = startPos; p < endPos; p++) {
+          ch = input.charAt(p);
+          if (ch === "\n") {
+            if (!details.seenCR) { details.line++; }
+            details.column = 1;
+            details.seenCR = false;
+          } else if (ch === "\r" || ch === "\u2028" || ch === "\u2029") {
+            details.line++;
+            details.column = 1;
+            details.seenCR = true;
+          } else {
+            details.column++;
+            details.seenCR = false;
+          }
+        }
+      }
+
+      if (peg$cachedPos !== pos) {
+        if (peg$cachedPos > pos) {
+          peg$cachedPos = 0;
+          peg$cachedPosDetails = { line: 1, column: 1, seenCR: false };
+        }
+        advance(peg$cachedPosDetails, peg$cachedPos, pos);
+        peg$cachedPos = pos;
+      }
+
+      return peg$cachedPosDetails;
+    }
+
+    function peg$fail(expected) {
+      if (peg$currPos < peg$maxFailPos) { return; }
+
+      if (peg$currPos > peg$maxFailPos) {
+        peg$maxFailPos = peg$currPos;
+        peg$maxFailExpected = [];
+      }
+
+      peg$maxFailExpected.push(expected);
+    }
+
+    function peg$buildException(message, expected, pos) {
+      function cleanupExpected(expected) {
+        var i = 1;
+
+        expected.sort(function(a, b) {
+          if (a.description < b.description) {
+            return -1;
+          } else if (a.description > b.description) {
+            return 1;
+          } else {
+            return 0;
+          }
+        });
+
+        while (i < expected.length) {
+          if (expected[i - 1] === expected[i]) {
+            expected.splice(i, 1);
+          } else {
+            i++;
+          }
+        }
+      }
+
+      function buildMessage(expected, found) {
+        function stringEscape(s) {
+          function hex(ch) { return ch.charCodeAt(0).toString(16).toUpperCase(); }
+
+          return s
+            .replace(/\\/g,   '\\\\')
+            .replace(/"/g,    '\\"')
+            .replace(/\x08/g, '\\b')
+            .replace(/\t/g,   '\\t')
+            .replace(/\n/g,   '\\n')
+            .replace(/\f/g,   '\\f')
+            .replace(/\r/g,   '\\r')
+            .replace(/[\x00-\x07\x0B\x0E\x0F]/g, function(ch) { return '\\x0' + hex(ch); })
+            .replace(/[\x10-\x1F\x80-\xFF]/g,    function(ch) { return '\\x'  + hex(ch); })
+            .replace(/[\u0180-\u0FFF]/g,         function(ch) { return '\\u0' + hex(ch); })
+            .replace(/[\u1080-\uFFFF]/g,         function(ch) { return '\\u'  + hex(ch); });
+        }
+
+        var expectedDescs = new Array(expected.length),
+            expectedDesc, foundDesc, i;
+
+        for (i = 0; i < expected.length; i++) {
+          expectedDescs[i] = expected[i].description;
+        }
+
+        expectedDesc = expected.length > 1
+          ? expectedDescs.slice(0, -1).join(", ")
+              + " or "
+              + expectedDescs[expected.length - 1]
+          : expectedDescs[0];
+
+        foundDesc = found ? "\"" + stringEscape(found) + "\"" : "end of input";
+
+        return "Expected " + expectedDesc + " but " + foundDesc + " found.";
+      }
+
+      var posDetails = peg$computePosDetails(pos),
+          found      = pos < input.length ? input.charAt(pos) : null;
+
+      if (expected !== null) {
+        cleanupExpected(expected);
+      }
+
+      return new SyntaxError(
+        message !== null ? message : buildMessage(expected, found),
+        expected,
+        found,
+        pos,
+        posDetails.line,
+        posDetails.column
+      );
+    }
+
+    function peg$parsestart() {
+      var s0;
+
+      s0 = peg$parseprogram();
+
+      return s0;
+    }
+
+    function peg$parsewhitechar() {
+      var s0;
+
+      if (peg$c0.test(input.charAt(peg$currPos))) {
+        s0 = input.charAt(peg$currPos);
+        peg$currPos++;
+      } else {
+        s0 = peg$FAILED;
+        if (peg$silentFails === 0) { peg$fail(peg$c1); }
+      }
+
+      return s0;
+    }
+
+    function peg$parse_() {
+      var s0, s1;
+
+      peg$silentFails++;
+      s0 = [];
+      s1 = peg$parsewhitechar();
+      while (s1 !== peg$FAILED) {
+        s0.push(s1);
+        s1 = peg$parsewhitechar();
+      }
+      peg$silentFails--;
+      if (s0 === peg$FAILED) {
+        s1 = peg$FAILED;
+        if (peg$silentFails === 0) { peg$fail(peg$c2); }
+      }
+
+      return s0;
+    }
+
+    function peg$parsedecimal() {
+      var s0, s1;
+
+      s0 = [];
+      if (peg$c5.test(input.charAt(peg$currPos))) {
+        s1 = input.charAt(peg$currPos);
+        peg$currPos++;
+      } else {
+        s1 = peg$FAILED;
+        if (peg$silentFails === 0) { peg$fail(peg$c6); }
+      }
+      if (s1 !== peg$FAILED) {
+        while (s1 !== peg$FAILED) {
+          s0.push(s1);
+          if (peg$c5.test(input.charAt(peg$currPos))) {
+            s1 = input.charAt(peg$currPos);
+            peg$currPos++;
+          } else {
+            s1 = peg$FAILED;
+            if (peg$silentFails === 0) { peg$fail(peg$c6); }
+          }
+        }
+      } else {
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parsenumber() {
+      var s0, s1, s2, s3, s4, s5, s6;
+
+      s0 = peg$currPos;
+      s1 = peg$parse_();
+      if (s1 !== peg$FAILED) {
+        if (input.charCodeAt(peg$currPos) === 45) {
+          s2 = peg$c8;
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) { peg$fail(peg$c9); }
+        }
+        if (s2 === peg$FAILED) {
+          s2 = peg$c7;
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parsedecimal();
+          if (s3 !== peg$FAILED) {
+            s4 = peg$parse_();
+            if (s4 !== peg$FAILED) {
+              peg$reportedPos = s0;
+              s1 = peg$c10();
+              s0 = s1;
+            } else {
+              peg$currPos = s0;
+              s0 = peg$c4;
+            }
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+      if (s0 === peg$FAILED) {
+        s0 = peg$currPos;
+        s1 = peg$parse_();
+        if (s1 !== peg$FAILED) {
+          if (input.charCodeAt(peg$currPos) === 45) {
+            s2 = peg$c8;
+            peg$currPos++;
+          } else {
+            s2 = peg$FAILED;
+            if (peg$silentFails === 0) { peg$fail(peg$c9); }
+          }
+          if (s2 === peg$FAILED) {
+            s2 = peg$c7;
+          }
+          if (s2 !== peg$FAILED) {
+            s3 = peg$parsedecimal();
+            if (s3 === peg$FAILED) {
+              s3 = peg$c7;
+            }
+            if (s3 !== peg$FAILED) {
+              if (input.charCodeAt(peg$currPos) === 46) {
+                s4 = peg$c11;
+                peg$currPos++;
+              } else {
+                s4 = peg$FAILED;
+                if (peg$silentFails === 0) { peg$fail(peg$c12); }
+              }
+              if (s4 !== peg$FAILED) {
+                s5 = peg$parsedecimal();
+                if (s5 !== peg$FAILED) {
+                  s6 = peg$parse_();
+                  if (s6 !== peg$FAILED) {
+                    peg$reportedPos = s0;
+                    s1 = peg$c10();
+                    s0 = s1;
+                  } else {
+                    peg$currPos = s0;
+                    s0 = peg$c4;
+                  }
+                } else {
+                  peg$currPos = s0;
+                  s0 = peg$c4;
+                }
+              } else {
+                peg$currPos = s0;
+                s0 = peg$c4;
+              }
+            } else {
+              peg$currPos = s0;
+              s0 = peg$c4;
+            }
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      }
+
+      return s0;
+    }
+
+    function peg$parseidentifier() {
+      var s0, s1, s2, s3, s4;
+
+      s0 = peg$currPos;
+      s1 = peg$parse_();
+      if (s1 !== peg$FAILED) {
+        if (peg$c13.test(input.charAt(peg$currPos))) {
+          s2 = input.charAt(peg$currPos);
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) { peg$fail(peg$c14); }
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = [];
+          if (peg$c15.test(input.charAt(peg$currPos))) {
+            s4 = input.charAt(peg$currPos);
+            peg$currPos++;
+          } else {
+            s4 = peg$FAILED;
+            if (peg$silentFails === 0) { peg$fail(peg$c16); }
+          }
+          while (s4 !== peg$FAILED) {
+            s3.push(s4);
+            if (peg$c15.test(input.charAt(peg$currPos))) {
+              s4 = input.charAt(peg$currPos);
+              peg$currPos++;
+            } else {
+              s4 = peg$FAILED;
+              if (peg$silentFails === 0) { peg$fail(peg$c16); }
+            }
+          }
+          if (s3 !== peg$FAILED) {
+            s4 = peg$parse_();
+            if (s4 !== peg$FAILED) {
+              peg$reportedPos = s0;
+              s1 = peg$c17(s2, s3);
+              s0 = s1;
+            } else {
+              peg$currPos = s0;
+              s0 = peg$c4;
+            }
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parsekw_yield() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parse_();
+      if (s1 !== peg$FAILED) {
+        if (input.substr(peg$currPos, 5) === peg$c18) {
+          s2 = peg$c18;
+          peg$currPos += 5;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) { peg$fail(peg$c19); }
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parse_();
+          if (s3 !== peg$FAILED) {
+            s1 = [s1, s2, s3];
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parsecomma() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parse_();
+      if (s1 !== peg$FAILED) {
+        if (input.charCodeAt(peg$currPos) === 44) {
+          s2 = peg$c20;
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) { peg$fail(peg$c21); }
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parse_();
+          if (s3 !== peg$FAILED) {
+            s1 = [s1, s2, s3];
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parseequal() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parse_();
+      if (s1 !== peg$FAILED) {
+        if (input.charCodeAt(peg$currPos) === 61) {
+          s2 = peg$c22;
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) { peg$fail(peg$c23); }
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parse_();
+          if (s3 !== peg$FAILED) {
+            s1 = [s1, s2, s3];
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parseopen_paren() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parse_();
+      if (s1 !== peg$FAILED) {
+        if (input.charCodeAt(peg$currPos) === 40) {
+          s2 = peg$c24;
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) { peg$fail(peg$c25); }
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parse_();
+          if (s3 !== peg$FAILED) {
+            s1 = [s1, s2, s3];
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parseclose_paren() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parse_();
+      if (s1 !== peg$FAILED) {
+        if (input.charCodeAt(peg$currPos) === 41) {
+          s2 = peg$c26;
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) { peg$fail(peg$c27); }
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parse_();
+          if (s3 !== peg$FAILED) {
+            s1 = [s1, s2, s3];
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parseprogram() {
+      var s0, s1;
+
+      s0 = peg$currPos;
+      s1 = peg$parsefunction_body();
+      if (s1 !== peg$FAILED) {
+        peg$reportedPos = s0;
+        s1 = peg$c28(s1);
+      }
+      s0 = s1;
+
+      return s0;
+    }
+
+    function peg$parsefunction_body() {
+      var s0, s1, s2;
+
+      s0 = peg$currPos;
+      s1 = [];
+      s2 = peg$parsefunction_body_part();
+      if (s2 !== peg$FAILED) {
+        while (s2 !== peg$FAILED) {
+          s1.push(s2);
+          s2 = peg$parsefunction_body_part();
+        }
+      } else {
+        s1 = peg$c4;
+      }
+      if (s1 !== peg$FAILED) {
+        peg$reportedPos = s0;
+        s1 = peg$c29(s1);
+      }
+      s0 = s1;
+
+      return s0;
+    }
+
+    function peg$parsefunction_body_part() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parsekw_yield();
+      if (s1 !== peg$FAILED) {
+        s2 = peg$parseexpression();
+        if (s2 !== peg$FAILED) {
+          peg$reportedPos = s0;
+          s1 = peg$c30(s2);
+          s0 = s1;
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+      if (s0 === peg$FAILED) {
+        s0 = peg$currPos;
+        s1 = peg$parseidentifier();
+        if (s1 !== peg$FAILED) {
+          s2 = peg$parseequal();
+          if (s2 !== peg$FAILED) {
+            s3 = peg$parseexpression();
+            if (s3 !== peg$FAILED) {
+              peg$reportedPos = s0;
+              s1 = peg$c31(s1, s3);
+              s0 = s1;
+            } else {
+              peg$currPos = s0;
+              s0 = peg$c4;
+            }
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      }
+
+      return s0;
+    }
+
+    function peg$parseexpression() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parsenonapp_expression();
+      if (s1 !== peg$FAILED) {
+        s2 = [];
+        s3 = peg$parseparenth_arg_list();
+        while (s3 !== peg$FAILED) {
+          s2.push(s3);
+          s3 = peg$parseparenth_arg_list();
+        }
+        if (s2 !== peg$FAILED) {
+          peg$reportedPos = s0;
+          s1 = peg$c32(s1, s2);
+          s0 = s1;
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parsenonapp_expression() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parseopen_paren();
+      if (s1 !== peg$FAILED) {
+        s2 = peg$parseexpression();
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parseclose_paren();
+          if (s3 !== peg$FAILED) {
+            peg$reportedPos = s0;
+            s1 = peg$c33(s2);
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+      if (s0 === peg$FAILED) {
+        s0 = peg$currPos;
+        s1 = peg$parseidentifier();
+        if (s1 !== peg$FAILED) {
+          peg$reportedPos = s0;
+          s1 = peg$c34(s1);
+        }
+        s0 = s1;
+      }
+
+      return s0;
+    }
+
+    function peg$parseparenth_arg_list() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parseopen_paren();
+      if (s1 !== peg$FAILED) {
+        s2 = peg$parsearg_list();
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parseclose_paren();
+          if (s3 !== peg$FAILED) {
+            peg$reportedPos = s0;
+            s1 = peg$c35(s2);
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parsearg_list() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parseexpression();
+      if (s1 !== peg$FAILED) {
+        s2 = peg$parsecomma();
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parsearg_list();
+          if (s3 !== peg$FAILED) {
+            peg$reportedPos = s0;
+            s1 = peg$c36(s1, s3);
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+      if (s0 === peg$FAILED) {
+        s0 = peg$currPos;
+        s1 = peg$parseexpression();
+        if (s1 !== peg$FAILED) {
+          peg$reportedPos = s0;
+          s1 = peg$c37(s1);
+        }
+        s0 = s1;
+      }
+
+      return s0;
+    }
+
+
+
+      function nestAnyApplications(initialExpr, argLists) {
+        var result = initialExpr;
+
+        for (var i = 0; i < argLists.length; i++) {
+          result = {type: 'app', funcExpr: result, argList: argLists[i]};
+        }
+
+        return result;
+      }
+
+
+
+    peg$result = peg$startRuleFunction();
+
+    if (peg$result !== peg$FAILED && peg$currPos === input.length) {
+      return peg$result;
+    } else {
+      if (peg$result !== peg$FAILED && peg$currPos < input.length) {
+        peg$fail({ type: "end", description: "end of input" });
+      }
+
+      throw peg$buildException(null, peg$maxFailExpected, peg$maxFailPos);
+    }
+  }
+
+  return {
+    SyntaxError: SyntaxError,
+    parse:       parse
+  };
+})();
+
+},{}],3:[function(require,module,exports){
+'use strict';
+
 function main(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
   if (argSlots.length !== 0) {
     throw new Error('called with wrong number of arguments');
@@ -20,7 +1156,7 @@ module.exports = {
   commentary: '<p>This program simply yields the mouse position unchanged, causing the square to be at the same position as the mouse.</p>',
 };
 
-},{}],2:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 'use strict';
 
 function main(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
@@ -45,7 +1181,7 @@ module.exports = {
   commentary: '<p>This program yields the mouse position delayed by 1 second. Note the behavior of the "JS timeout outstanding" value on the left, as you alternately move the mouse and stop moving it for a bit. If there are "buffered" mouse movements still to be played out, there is a timeout set for those. If the mouse has been still for a least one second, no changes will be buffered and so no timeout will be set.</p><p>Also note, if you quickly move the pointer and click to start this same program again, the square jumps to match the mouse position. This is because the delay1 function relays its initial input as its output for the first second.</p>',
 };
 
-},{}],3:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 'use strict';
 
 function main(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
@@ -71,7 +1207,7 @@ module.exports = {
   commentary: '<p>This program switches between yielding the current mouse position and the delayed mouse position, based on whether the mouse button is down. The if/then/else syntax is an expression (like the ternary operator "?:"), not a statement.</p><p>Note that even if the mouse button is held down, the delayed position is computed. This is necessary to avoid "time leaks", i.e. we don\'t know when we\'ll need the value when the mouse button is released, so we must keep it up to date.</p>',
 };
 
-},{}],4:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 'use strict';
 
 function main(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
@@ -97,7 +1233,7 @@ module.exports = {
   commentary: '<p>This program illustrates a subtle and important detail, when compared to the previous program. In this program, we apply a function to the mouse position, but the value of that function we apply is itself dynamic. It switches from the value "id" (identity function) to the value "delay1". This is similar to the previous program, except when the mouse is released, the square stays at the current mouse position. This is because when id or delay1 are switched into action, they always start "from scratch". Only one is running at a time. And when delay1 starts, it mirrors its input for the first second. In the previous program, delay1 is always running.</p>',
 };
 
-},{}],5:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 'use strict';
 
 var PriorityQueue = require('./pq');
@@ -245,10 +1381,10 @@ Runtime.prototype.primitives = require('./prims');
 
 module.exports = Runtime;
 
-},{"./pq":8,"./prims":9}],6:[function(require,module,exports){
+},{"./pq":10,"./prims":11}],8:[function(require,module,exports){
 module.exports = require('./lib/heap');
 
-},{"./lib/heap":7}],7:[function(require,module,exports){
+},{"./lib/heap":9}],9:[function(require,module,exports){
 // Generated by CoffeeScript 1.8.0
 (function() {
   var Heap, defaultCmp, floor, heapify, heappop, heappush, heappushpop, heapreplace, insort, min, nlargest, nsmallest, updateItem, _siftdown, _siftup;
@@ -625,7 +1761,7 @@ module.exports = require('./lib/heap');
 
 }).call(this);
 
-},{}],8:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 'use strict';
 
 var Heap = require('heap');
@@ -703,7 +1839,7 @@ PriorityQueue.prototype.pullRemoved = function() {
 
 module.exports = PriorityQueue;
 
-},{"heap":6}],9:[function(require,module,exports){
+},{"heap":8}],11:[function(require,module,exports){
 'use strict';
 
 function liftN(func, arity) {
@@ -844,10 +1980,11 @@ module.exports = {
   delay1: delay1,
 };
 
-},{}],10:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 'use strict';
 
 var Runtime = require('../runtime');
+var Compiler = require('../compiler/compiler.js');
 
 var demoProgs = {
   'same position': require('./progs/prog0'),
@@ -909,7 +2046,6 @@ document.addEventListener('mousedown', function(e) {
     inputValues.mouseDown = true;
     runtime.setSlotValue(rootLexEnv.mouseDown, inputValues.mouseDown, t);
     tryRunning();
-    e.preventDefault();
   }
 }, false);
 
@@ -922,13 +2058,12 @@ document.addEventListener('mouseup', function(e) {
   }
 }, false);
 
-
 function updateInternalsDisplay() {
   var internalsText = [];
   internalsText.push('Output changes: ' + internals.outputChanges);
   internalsText.push('JS timeout outstanding: ' + !!timeoutID);
 
-  document.getElementById('internals-column').innerHTML = internalsText.join('<br>');
+  document.getElementById('internals-notes').innerHTML = internalsText.join('<br>');
 }
 
 function witnessOutput(atTime) {
@@ -946,11 +2081,10 @@ function witnessOutput(atTime) {
   squareElem.style.top = (value.y + 1) + 'px';
 }
 
-function startDemoProg(prog) {
+function startCompiledMain(mainFunc) {
   if (currentResult) {
     // deactivate current running program
     currentResult.deactivator();
-    console.log('deactivated previous main');
 
     // remove trigger on output
     runtime.removeTrigger(currentResult.outputSlot, witnessOutput);
@@ -1006,9 +2140,6 @@ function startDemoProg(prog) {
   runtime.setSlotValue(rootLexEnv.mousePos, {x: inputValues.mouseX, y: inputValues.mouseY}, 0);
   runtime.setSlotValue(rootLexEnv.mouseDown, inputValues.mouseDown, 0);
 
-  document.getElementById('code-column-code').textContent = prog.code;
-  document.getElementById('code-column-commentary').innerHTML = prog.commentary || '';
-
   // initialize internals
   internals = {
     outputChanges: 0,
@@ -1016,14 +2147,19 @@ function startDemoProg(prog) {
   updateInternalsDisplay();
 
   // assume main activator definition has been generated by compiler
-  currentResult = prog.main(runtime, 0, [], '', rootLexEnv);
+  currentResult = mainFunc(runtime, 0, [], '', rootLexEnv);
 
-  console.log('activated main');
   witnessOutput(0);
 
   runtime.addTrigger(currentResult.outputSlot, witnessOutput);
 
   tryRunning();
+}
+
+function startDemoProg(prog) {
+  document.getElementById('code-column-editor').value = prog.code;
+  document.getElementById('code-column-commentary').innerHTML = prog.commentary || '';
+  startCompiledMain(prog.main);
 }
 
 function createDemoControls() {
@@ -1067,6 +2203,14 @@ function createDemoControls() {
       startDemoProg(prog);
     }
   }, false);
+
+  document.getElementById('compile-button').addEventListener('click', function(e) {
+    var mainFuncSrc = Compiler.compile(document.getElementById('code-column-editor').value);
+    console.log('compiled to JS:');
+    console.log(mainFuncSrc);
+    var mainFunc = eval(mainFuncSrc);
+    startCompiledMain(mainFunc);
+  });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -1075,4 +2219,4 @@ document.addEventListener('DOMContentLoaded', function() {
   startDemoProg(demoProgs['same position']);
 });
 
-},{"../runtime":5,"./progs/prog0":1,"./progs/prog1":2,"./progs/prog2":3,"./progs/prog3":4}]},{},[10]);
+},{"../compiler/compiler.js":1,"../runtime":7,"./progs/prog0":3,"./progs/prog1":4,"./progs/prog2":5,"./progs/prog3":6}]},{},[12]);
