@@ -12,10 +12,14 @@
 
 }
 
+/*****************************************************************************
+ * Start rule, which must be the first rule in the file.
+ ****************************************************************************/
+
 start
   = expression
 
-// "utility" rules
+// Rules for whitespace.
 
 whitechar
   = [ \t\n\r]
@@ -23,11 +27,17 @@ whitechar
 _ "whitespace"
   = whitechar*
 
+/*****************************************************************************
+ * Other "utility" rules that are not lexemes in of themselves.
+ ****************************************************************************/
+
 decimal
   = [0-9]+
 
-// Rules starting here are lexemes wrapped in optional whitespace.
-// Rules in this section don't return AST constructs, they return nothing, or strings/numbers/etc.
+/*****************************************************************************
+ * Rules starting here are lexemes wrapped in optional whitespace.
+ * Rules in this section don't return AST constructs, they return nothing, or strings/numbers/etc.
+ ****************************************************************************/
 
 number
   = _ "-"? decimal _ { return parseFloat(text()); }
@@ -48,7 +58,9 @@ open_paren
 close_paren
   = _ ")" _
 
-// From here on, whitespace is not dealt with, and we don't use any literals in parsing expressions.
+/*****************************************************************************
+ * From here on, whitespace is not dealt with, and we don't use any literals in parsing expressions.
+ ****************************************************************************/
 
 program
   = topBody:function_body { return topBody; }
