@@ -94,10 +94,10 @@ expression
 nonapp_expression
   = open_paren expr:expression close_paren { return expr; }
   // TODO: function definition
-  / ident:identifier { return {type: 'varIdent', name: ident}; }
+  / ident:identifier { return {type: 'varIdent', ident: ident}; }
 
 parenth_arg_list
-  = open_paren argList:arg_list close_paren { return {type: 'argList', args: argList}; }
+  = open_paren argList:arg_list close_paren { return argList; }
 
 // This returns an array of expression objects.
 arg_list

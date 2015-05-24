@@ -63,8 +63,8 @@ module.exports = (function() {
         peg$c28 = function(expr) { return {type: 'yield', expr: expr}; },
         peg$c29 = function(initialExpr, argLists) { return nestAnyApplications(initialExpr, argLists); },
         peg$c30 = function(expr) { return expr; },
-        peg$c31 = function(ident) { return {type: 'varIdent', name: ident}; },
-        peg$c32 = function(argList) { return {type: 'argList', args: argList}; },
+        peg$c31 = function(ident) { return {type: 'varIdent', ident: ident}; },
+        peg$c32 = function(argList) { return argList; },
         peg$c33 = function(first, rest) { return [first].concat(rest); },
         peg$c34 = function(expr) { return [expr]; },
 
