@@ -1,0 +1,15 @@
+{
+  "name": "temporal-splendor-compiler",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "genparser": "pegjs parser.pegjs parser.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Russel Simmons <russ@rsimmons.org>",
+  "license": "MIT",
+  "devDependencies": {
+    "pegjs": "^0.8.0"
+  }
+}
