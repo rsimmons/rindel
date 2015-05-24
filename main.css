@@ -7,6 +7,23 @@ body {
   font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
 }
 
+button {
+  font-size: 18px;
+  background: rgb(255, 189, 70);
+  padding: 10px 20px;
+  border: 2px solid #888;
+  border-radius: 5px;
+  color: rgb(50, 50, 50);
+}
+
+button:active {
+  background: rgb(255, 164, 0);
+}
+
+button:focus {
+  outline:0 !important;
+}
+
 .inline-code {
   font-family: Consolas, Monaco, 'Andale Mono', monospace;
   color: rgb(155, 27, 27);
@@ -41,13 +58,14 @@ body {
   width: 300px;
 }
 
-#code-column-code {
+#code-column-editor {
   font-family: Consolas, Monaco, 'Andale Mono', monospace;
-  font-size: 18px;
-  margin: 0;
+  width: 100%;
+  font-size: 16px;
   padding: 10px;
-  background-color: #eee;
-  white-space: pre-wrap;
+  box-sizing: border-box;
+  resize: vertical;
+  background-color: #F9F9F9;
 }
 
 #code-column-commentary {
@@ -75,12 +93,17 @@ body {
   background-color: #BAEA87 !important;
 }
 
+#controls-form {
+  margin-bottom: 20px;
+}
+
 #square {
   position: absolute;
   width: 30px;
   height: 30px;
-  background-color: orange;
+  background-color: #FA79B4;
   border: 2px solid #666;
   left: -100px;
   right: -100px;
+  pointer-events: none;
 }
