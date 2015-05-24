@@ -13,14 +13,16 @@
 }
 
 /*****************************************************************************
- * Start rule, which must be the first rule in the file.
+ * START RULE
+ *
+ * This must be the first rule in the file.
  ****************************************************************************/
 
 start
   = program
 
 /*****************************************************************************
- * Rules for whitespace.
+ * WHITESPACE RULES
  ****************************************************************************/
 
 whitechar
@@ -30,15 +32,20 @@ _ "whitespace"
   = whitechar*
 
 /*****************************************************************************
- * Other "utility" rules that are not lexemes in of themselves.
+ * MISC/UTILITY RULES
+ *
+ * These rules are not whitespace or lexemes but are used to build lexemes.
  ****************************************************************************/
 
 decimal
   = [0-9]+
 
 /*****************************************************************************
+ * (WRAPPED) LEXEME RULES
+ *
  * Rules starting here are lexemes wrapped in optional whitespace.
- * Rules in this section don't return AST constructs, they return nothing, or strings/numbers/etc.
+ * Rules in this section and before correspond to the lexical analysis stage.
+ * Rules in this section don't return AST objects. They return nothing, or strings/numbers/etc.
  ****************************************************************************/
 
 number
@@ -61,7 +68,11 @@ close_paren
   = _ ")" _
 
 /*****************************************************************************
- * From here on, whitespace is not dealt with, and we don't use any literals in parsing expressions.
+ * PHRASE RULES
+ *
+ * Rules starting here don't deal with tokenization/lexical analysis.
+ * Whitespace is not considered, and there are no literals in parsing expressions.
+ * Rules are only written in terms of (wrapped) lexeme rules or other phrase rules.
  ****************************************************************************/
 
 program
