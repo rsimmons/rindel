@@ -1984,7 +1984,7 @@ module.exports = {
 'use strict';
 
 var Runtime = require('../runtime');
-var Compiler = require('../compiler/compiler.js');
+var Compiler = require('../compiler');
 
 var demoProgs = {
   'same position': require('./progs/prog0'),
@@ -2219,4 +2219,4 @@ document.addEventListener('DOMContentLoaded', function() {
   startDemoProg(demoProgs['same position']);
 });
 
-},{"../compiler/compiler.js":1,"../runtime":7,"./progs/prog0":3,"./progs/prog1":4,"./progs/prog2":5,"./progs/prog3":6}]},{},[12]);
+},{"../compiler":1,"../runtime":7,"./progs/prog0":3,"./progs/prog1":4,"./progs/prog2":5,"./progs/prog3":6}]},{},[12]);

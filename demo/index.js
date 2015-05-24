@@ -1,7 +1,7 @@
 'use strict';
 
 var Runtime = require('../runtime');
-var Compiler = require('../compiler/compiler.js');
+var Compiler = require('../compiler');
 
 var demoProgs = {
   'same position': require('./progs/prog0'),
