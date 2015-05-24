@@ -55,11 +55,17 @@ number
 identifier
   = _ first:[_a-z]i rest:[_a-z0-9]i* _ { return first + rest.join(''); }
 
+var_identifier
+  = identifier
+
 kw_yield
   = _ "yield" _
 
 comma
   = _ "," _
+
+equal
+  = _ "=" _
 
 open_paren
   = _ "(" _
@@ -83,6 +89,7 @@ function_body
 
 function_body_part
   = kw_yield expr:expression { return {type: 'yield', expr: expr}; }
+  / ident:var_identifier equal expr:expression { return {type: 'binding', ident: ident, expr: expr}; }
 
 // Expressions are weird, because we can't express function application expressions as we'd like to,
 // which is left-recurisvely. This is a limitation of PEGs. So instead we have to view them in a "flat" way.
@@ -94,7 +101,7 @@ expression
 nonapp_expression
   = open_paren expr:expression close_paren { return expr; }
   // TODO: function definition
-  / ident:identifier { return {type: 'varIdent', ident: ident}; }
+  / ident:var_identifier { return {type: 'varIdent', ident: ident}; }
 
 parenth_arg_list
   = open_paren argList:arg_list close_paren { return argList; }
