@@ -237,7 +237,7 @@ module.exports = (function() {
     function peg$parsestart() {
       var s0;
 
-      s0 = peg$parseexpression();
+      s0 = peg$parseprogram();
 
       return s0;
     }
