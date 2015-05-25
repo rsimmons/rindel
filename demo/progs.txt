@@ -46,4 +46,13 @@ yield Vec2(x, y)
 ---
 <p>Here we demonstrate binding expressions to names and basic math operators. Note the precedence of multiplicative operators over additive operators.</p>
 
+=====
+
+strange movement
+---
+x = 0.5*delay1(mousePos.x) + 0.5*mousePos.x
+y = 0.5*delay1(mousePos.y) + 0.5*mousePos.y
+yield Vec2(x, y)
+---
+<p>The output position is halfway between the current mouse position and the 1-second-delayed mouse position. This type of thing would be annoying to code in regular Javascript, but is easy in this language.</p>
 
