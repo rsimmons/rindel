@@ -1,0 +1,37 @@
+same position
+---
+yield mousePos
+---
+<p>This program simply yields the mouse position unchanged, causing the square to be at the same position as the mouse.</p>
+
+=====
+
+delayed position
+---
+yield delay1(mousePos)
+---
+<p>This program yields the mouse position delayed by 1 second. Note the behavior of the "JS timeout outstanding" value on the left, as you alternately move the mouse and stop moving it for a bit. If there are "buffered" mouse movements still to be played out, there is a timeout set for those. If the mouse has been still for a least one second, no changes will be buffered and so no timeout will be set.</p><p>Also note, if you quickly move the pointer and click to start this same program again, the square jumps to match the mouse position. This is because the delay1 function relays its initial input as its output for the first second.</p>
+
+=====
+
+switch on button
+---
+yield if mouseDown then mousePos else delay1(mousePos)
+---
+<p>This program switches between yielding the current mouse position and the delayed mouse position, based on whether the mouse button is down. The if/then/else syntax is an expression (like the ternary operator "?:"), not a statement.</p><p>Note that even if the mouse button is held down, the delayed position is computed. This is necessary to avoid "time leaks", i.e. we don\'t know when we\'ll need the value when the mouse button is released, so we must keep it up to date.</p>
+
+=====
+
+dynamic application
+---
+yield (if mouseDown then id else delay1)(mousePos)
+---
+<p>This program illustrates a subtle and important detail, when compared to the previous program. In this program, we apply a function to the mouse position, but the value of that function we apply is itself dynamic. It switches from the value "id" (identity function) to the value "delay1". This is similar to the previous program, except when the mouse is released, the square stays at the current mouse position. This is because when id or delay1 are switched into action, they always start "from scratch". Only one is running at a time. And when delay1 starts, it mirrors its input for the first second. In the previous program, delay1 is always running.</p>
+
+=====
+
+props and ctor
+---
+yield Vec2(mousePos.y, mousePos.x)
+---
+<p>This program demonstrates property access with the dot operator, and calling a "constructor" function which is just a builtin in this case.</p>

@@ -5,14 +5,15 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build-prod": "NODE_ENV=production browserify index.js | uglifyjs -mc > public/bundle.js",
-    "build": "browserify index.js > public/bundle.js",
-    "watch": "watchify index.js -o public/bundle.js -v",
+    "build-prod": "NODE_ENV=production browserify -t brfs index.js | uglifyjs -mc > public/bundle.js",
+    "build": "browserify -t brfs index.js > public/bundle.js",
+    "watch": "watchify -t brfs index.js -o public/bundle.js -v",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Russel Simmons <russ@rsimmons.org>",
   "license": "MIT",
   "devDependencies": {
+    "brfs": "^1.4.0",
     "browserify": "^10.2.0",
     "uglify-js": "^2.4.23",
     "watchify": "^3.2.1"

@@ -1,15 +1,33 @@
 'use strict';
 
+var fs = require('fs'); // for loading demos
 var Runtime = require('../runtime');
 var Compiler = require('../compiler');
 
-var demoProgs = {
-  'same position': require('./progs/prog0'),
-  'delayed position': require('./progs/prog1'),
-  'switch on button': require('./progs/prog2'),
-  'dynamic application': require('./progs/prog3'),
-  'props and ctor': require('./progs/prog4'),
-};
+var demoProgsMap = {};
+var demoProgsList = [];
+
+var demoProgsData = fs.readFileSync(__dirname + '/progs.txt', 'utf8');
+
+var demoProgsDataList = demoProgsData.split('\n=====\n');
+for (var i = 0; i < demoProgsDataList.length; i++) {
+  var progFields = demoProgsDataList[i].split('\n---\n');
+  if (progFields.length !== 3) {
+    throw new Error('Problem loading demo programs');
+  }
+  var title = progFields[0].trim();
+  var source = progFields[1].trim();
+  var commentary = progFields[2].trim();
+
+  var progInfo = {
+    title: title,
+    source: source,
+    commentary: commentary,
+  };
+
+  demoProgsMap[title] = progInfo;
+  demoProgsList.push(progInfo);
+}
 
 var initialDateNow = Date.now();
 var runtime;
@@ -178,19 +196,20 @@ function compileAndStartProgram(code) {
   startCompiledProgram(mainFunc);
 }
 
-function startDemoProg(prog) {
-  document.getElementById('code-column-editor').value = prog.code;
-  document.getElementById('code-column-commentary').innerHTML = prog.commentary || '';
-  compileAndStartProgram(prog.code);
+function startDemoProg(progInfo) {
+  document.getElementById('code-column-editor').value = progInfo.source;
+  document.getElementById('code-column-commentary').innerHTML = progInfo.commentary || '';
+  compileAndStartProgram(progInfo.source);
 }
 
 function createDemoControls() {
   var demosListElem = document.getElementById('demos-list');
 
-  for (var name in demoProgs) {
+  for (var i = 0; i < demoProgsList.length; i++) {
+    var info = demoProgsList[i];
     var li = document.createElement('LI');
     li.setAttribute('class', 'demo-choice');
-    li.appendChild(document.createTextNode(name));
+    li.appendChild(document.createTextNode(info.title));
     demosListElem.appendChild(li);
   }
   demosListElem.firstChild.classList.add('demo-active');
@@ -204,9 +223,9 @@ function createDemoControls() {
       e.target.classList.add('demo-active');
 
       // run program
-      var name = e.target.textContent;
-      var prog = demoProgs[name];
-      startDemoProg(prog);
+      var title = e.target.textContent;
+      var progInfo = demoProgsMap[title];
+      startDemoProg(progInfo);
     }
   }, false);
 
@@ -218,5 +237,5 @@ function createDemoControls() {
 document.addEventListener('DOMContentLoaded', function() {
   createDemoControls();
 
-  startDemoProg(demoProgs['same position']);
+  startDemoProg(demoProgsList[0]);
 });
