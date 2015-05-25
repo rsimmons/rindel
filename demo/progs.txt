@@ -35,3 +35,13 @@ props and ctor
 yield Vec2(mousePos.y, mousePos.x)
 ---
 <p>This program demonstrates property access with the dot operator, and calling a "constructor" function which is just a builtin in this case.</p>
+
+=====
+
+basic math
+---
+yield Vec2(800 - 1.5*mousePos.x, mousePos.y + 50)
+---
+<p>Here we demonstrate basic math operators and precedence of multiplicatives over additives.</p>
+
+

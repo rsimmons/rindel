@@ -63,4 +63,6 @@ module.exports = {
 
   add: liftN(function(a, b) { return a+b; }, 2),
   sub: liftN(function(a, b) { return a-b; }, 2),
+  mul: liftN(function(a, b) { return a*b; }, 2),
+  div: liftN(function(a, b) { return a/b; }, 2),
 };

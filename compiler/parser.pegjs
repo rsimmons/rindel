@@ -27,6 +27,21 @@
 
 {
 
+  // first is an expression. rest is an array of two-element [op, expr] arrays
+  function nestBinOps(first, rest) {
+    var result = first;
+
+    for (var i = 0; i < rest.length; i++) {
+      result = {
+        type: 'op',
+        op: rest[i][0],
+        args: [result].concat(rest[i][1]),
+      };
+    }
+
+    return result;
+  }
+
 }
 
 /*****************************************************************************
@@ -96,6 +111,18 @@ dot
 equal
   = _ "=" _
 
+op_add
+  = _ "+" _
+
+op_sub
+  = _ "-" _
+
+op_mul
+  = _ "*" _
+
+op_div
+  = _ "/" _
+
 open_paren
   = _ "(" _
 
@@ -110,6 +137,10 @@ close_paren
  * Rules are only written in terms of (wrapped) lexeme rules or other phrase rules.
  ****************************************************************************/
 
+/*************************************
+ * HIGH LEVEL STRUCTURE
+ ************************************/
+
 program
   = topBody:function_body { return topBody; }
 
@@ -119,6 +150,13 @@ function_body
 function_body_part
   = kw_yield expr:expression { return {type: 'yield', expr: expr}; }
   / ident:var_identifier equal expr:expression { return {type: 'binding', ident: ident, expr: expr}; }
+
+/*************************************
+ * EXPRESSIONS
+ *
+ * From high precendence to low.
+ * Rules tend to build on ones above.
+ ************************************/
 
 primary_expr
   = open_paren expr:expression close_paren { return expr; }
@@ -155,7 +193,25 @@ access_call_expr
     return result;
   }
 
-expression = access_call_expr
+multiplicative_op
+  = op_mul { return 'mul'; }
+  / op_div { return 'div'; }
+
+multiplicative_expr
+  = first:access_call_expr rest:(multiplicative_op access_call_expr)* { return nestBinOps(first, rest); }
+
+additive_op
+  = op_add { return 'add'; }
+  / op_sub { return 'sub'; }
+
+additive_expr
+  = first:multiplicative_expr rest:(additive_op multiplicative_expr)* { return nestBinOps(first, rest); }
+
+expression = additive_expr
+
+/*************************************
+ * HELPERS
+ ************************************/
 
 // this the right hand of a property access via dot, e.g. ".length"
 dot_access
