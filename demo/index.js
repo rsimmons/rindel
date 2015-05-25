@@ -98,7 +98,7 @@ function witnessOutput(atTime) {
   squareElem.style.top = (value.y + 1) + 'px';
 }
 
-function startCompiledMain(mainFunc) {
+function startCompiledProgram(mainFunc) {
   if (currentResult) {
     // deactivate current running program
     currentResult.deactivator();
@@ -173,10 +173,18 @@ function startCompiledMain(mainFunc) {
   tryRunning();
 }
 
+function compileAndStartProgram(code) {
+  var mainFuncSrc = Compiler.compile(code);
+  console.log('compiled to JS:');
+  console.log(mainFuncSrc);
+  var mainFunc = eval(mainFuncSrc);
+  startCompiledProgram(mainFunc);
+}
+
 function startDemoProg(prog) {
   document.getElementById('code-column-editor').value = prog.code;
   document.getElementById('code-column-commentary').innerHTML = prog.commentary || '';
-  startCompiledMain(prog.main);
+  compileAndStartProgram(prog.code);
 }
 
 function createDemoControls() {
@@ -206,11 +214,7 @@ function createDemoControls() {
   }, false);
 
   document.getElementById('compile-button').addEventListener('click', function(e) {
-    var mainFuncSrc = Compiler.compile(document.getElementById('code-column-editor').value);
-    console.log('compiled to JS:');
-    console.log(mainFuncSrc);
-    var mainFunc = eval(mainFuncSrc);
-    startCompiledMain(mainFunc);
+    compileAndStartProgram(Compiler.compile(document.getElementById('code-column-editor').value));
   });
 }
 

@@ -1,22 +1,5 @@
 'use strict';
 
-function main(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
-  if (argSlots.length !== 0) {
-    throw new Error('called with wrong number of arguments');
-  }
-
-  var $_0Result = runtime.addApplication(startTime, lexEnv.ifte, [lexEnv.mouseDown, lexEnv.id, lexEnv.delay1], baseTopoOrder+'0');
-  var $_outResult = runtime.addApplication(startTime, $_0Result.outputSlot, [lexEnv.mousePos], baseTopoOrder+'1');
-
-  return {
-    outputSlot: $_outResult.outputSlot,
-    deactivator: function() {
-      $_0Result.deactivator();
-      $_outResult.deactivator();
-    },
-  };
-}
-
 module.exports = {
   code: 'yield (if mouseDown then id else delay1)(mousePos)',
   main: main,
