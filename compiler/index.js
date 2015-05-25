@@ -223,7 +223,14 @@ function compileFunction(paramNames, bodyParts) {
 
       var litValueExpr;
       if (node.kind === 'specialFunc') {
-        litValueExpr = 'runtime.specialFuncs.' + node.value;
+        if (node.value.func === 'ifte') {
+          litValueExpr = 'runtime.specialFuncs.ifte';
+        } else if (node.value.func === 'dotAccess') {
+          // TODO: we might want to call a proper repr()-style escape on the propName, but it should only be safe characters anyways
+          litValueExpr = 'runtime.specialFuncs.dotAccess(\'' + node.value.propName + '\')';
+        } else {
+          throw new Error('Unrecognized special function');
+        }
       } else if (node.kind === 'number') {
         litValueExpr = node.value.toString();
       } else {

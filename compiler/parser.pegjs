@@ -1,10 +1,20 @@
 {
 
-  function nestAnyApplications(initialExpr, argLists) {
+  function nestApplications(initialExpr, argLists) {
     var result = initialExpr;
 
     for (var i = 0; i < argLists.length; i++) {
       result = {type: 'app', funcExpr: result, argList: argLists[i]};
+    }
+
+    return result;
+  }
+
+  function nestDotAccesses(initialExpr, propNames) {
+    var result = initialExpr;
+
+    for (var i = 0; i < propNames.length; i++) {
+      result = {type: 'app', funcExpr: {type: 'literal', kind: 'specialFunc', value: {func: 'dotAccess', propName: propNames[i]}}, argList: [result]};
     }
 
     return result;
@@ -73,6 +83,9 @@ kw_else
 comma
   = _ "," _
 
+dot
+  = _ "." _
+
 equal
   = _ "=" _
 
@@ -100,18 +113,24 @@ function_body_part
   = kw_yield expr:expression { return {type: 'yield', expr: expr}; }
   / ident:var_identifier equal expr:expression { return {type: 'binding', ident: ident, expr: expr}; }
 
-// Expressions are weird, because we can't express function application expressions as we'd like to,
+// Expressions are weird, because we can't express function application expressions and dot-access as we'd like to,
 // which is left-recurisvely. This is a limitation of PEGs. So instead we have to view them in a "flat" way.
 // This is counter-intuitive but works perfectly fine.
 expression
-  = initialExpr:nonapp_expression argLists:parenth_arg_list* { return nestAnyApplications(initialExpr, argLists); }
+  = initialExpr:nonleftrecur_expression argLists:parenth_arg_list+ { return nestApplications(initialExpr, argLists); }
+  / initialExpr:nonleftrecur_expression propNames:dot_access+ { return nestDotAccesses(initialExpr, propNames); }
+  / expr:nonleftrecur_expression { return expr; }
+
+// this the right hand of a property access via dot, e.g. ".length"
+dot_access
+  = dot ident:var_identifier { return ident; }
 
 // This rule is for expressions that are _not_ function applications, since they are handled specially.
-nonapp_expression
+nonleftrecur_expression
   = open_paren expr:expression close_paren { return expr; }
   // TODO: function definition
   / number:number { return {type: 'literal', kind: 'number', value: number}; }
-  / kw_if condition:expression kw_then consequent:expression kw_else alternative:expression { return {type: 'app', funcExpr: {type: 'literal', kind: 'specialFunc', value: 'ifte'}, argList: [condition, consequent, alternative]}; }
+  / kw_if condition:expression kw_then consequent:expression kw_else alternative:expression { return {type: 'app', funcExpr: {type: 'literal', kind: 'specialFunc', value: {func: 'ifte'}}, argList: [condition, consequent, alternative]}; }
   / ident:var_identifier { return {type: 'varIdent', ident: ident}; }
 
 parenth_arg_list
