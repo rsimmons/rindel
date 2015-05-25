@@ -146,10 +146,10 @@ function startCompiledProgram(mainFunc) {
   });
 
   // builtin functions
-  runtime.setSlotValue(rootLexEnv.add, runtime.primitives.add, 0);
-  runtime.setSlotValue(rootLexEnv.delay1, runtime.primitives.delay1, 0);
-  runtime.setSlotValue(rootLexEnv.ifte, runtime.primitives.ifte, 0);
-  runtime.setSlotValue(rootLexEnv.id, runtime.primitives.id, 0);
+  runtime.setSlotValue(rootLexEnv.add, runtime.builtins.add, 0);
+  runtime.setSlotValue(rootLexEnv.delay1, runtime.builtins.delay1, 0);
+  runtime.setSlotValue(rootLexEnv.ifte, runtime.builtins.ifte, 0);
+  runtime.setSlotValue(rootLexEnv.id, runtime.builtins.id, 0);
 
   // inputs
   runtime.setSlotValue(rootLexEnv.mouseX, inputValues.mouseX, 0);

@@ -1,49 +1,7 @@
 'use strict';
 
-function liftN(func, arity) {
-  return function(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
-    if (argSlots.length !== arity) {
-      throw new Error('got wrong number of arguments');
-    }
-
-    var outputSlot = runtime.createSlot();
-
-    var updateTask = function(atTime) {
-      var argVals = [];
-      for (var i = 0; i < arity; i++) {
-        argVals.push(runtime.getSlotValue(argSlots[i]));
-      }
-      var outVal = func.apply(null, argVals);
-      runtime.setSlotValue(outputSlot, outVal, atTime);
-    };
-
-    // make closure that queues task to update value in outputSlot
-    var updateTrigger = function(atTime) {
-      runtime.priorityQueue.insert({
-        time: atTime,
-        topoOrder: baseTopoOrder,
-        closure: updateTask,
-      });
-    }
-
-    // set initial output
-    updateTask(startTime);
-
-    // add triggers
-    for (var i = 0; i < arity; i++) {
-      runtime.addTrigger(argSlots[i], updateTrigger);
-    }
-
-    return {
-      outputSlot: outputSlot,
-      deactivator: function() {
-        for (var i = 0; i < arity; i++) {
-          runtime.removeTrigger(argSlots[i], updateTrigger);
-        }
-      },
-    };
-  };
-};
+var primUtils = require('./primUtils');
+var liftN = primUtils.liftN;
 
 function delay1(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
   if (argSlots.length !== 1) {
@@ -132,7 +90,6 @@ function delay1(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
 module.exports = {
   add: liftN(function(a, b) { return a+b; }, 2),
   sub: liftN(function(a, b) { return a-b; }, 2),
-  ifte: liftN(function(a, b, c) { return a ? b : c; }, 3),
   id: liftN(function(a) { return a; }, 1),
 
   delay1: delay1,

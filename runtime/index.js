@@ -141,12 +141,8 @@ Runtime.prototype.addApplication = function(startTime, func, args, baseTopoOrder
   };
 };
 
-var Primitives = require('./prims');
+Runtime.prototype.builtins = require('./builtins');
 
-Runtime.prototype.primitives = Primitives;
-
-Runtime.prototype.specialFuncs = {
-  ifte: Primitives.ifte,
-};
+Runtime.prototype.specialFuncs = require('./specialFuncs');
 
 module.exports = Runtime;
