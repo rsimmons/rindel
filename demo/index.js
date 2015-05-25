@@ -8,6 +8,7 @@ var demoProgs = {
   'delayed position': require('./progs/prog1'),
   'switch on button': require('./progs/prog2'),
   'dynamic application': require('./progs/prog3'),
+  'props and ctor': require('./progs/prog4'),
 };
 
 var initialDateNow = Date.now();
