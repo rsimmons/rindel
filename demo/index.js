@@ -187,22 +187,6 @@ function createDemoControls() {
     li.setAttribute('class', 'demo-choice');
     li.appendChild(document.createTextNode(name));
     demosListElem.appendChild(li);
-
-/*
-    var ce = document.createElement('CODE');
-    ce.className = 'language-javascript';
-    var extractedCode = /\/\/SHOWBEGIN([^]*)\/\/SHOWEND/gm.exec(demos[name].code)[1].trim();
-    ce.appendChild(document.createTextNode(extractedCode));
-
-    var pe = document.createElement('PRE');
-    pe.className = 'code-wrapper';
-    pe.style.display = 'none';
-    pe.appendChild(ce);
-
-    codeColumnElem.appendChild(pe);
-
-    demos[k].preElem = pe;
-*/
   }
   demosListElem.firstChild.classList.add('demo-active');
 
