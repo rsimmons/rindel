@@ -210,7 +210,7 @@ function createDemoControls() {
   }, false);
 
   document.getElementById('compile-button').addEventListener('click', function(e) {
-    compileAndStartProgram(Compiler.compile(document.getElementById('code-column-editor').value));
+    compileAndStartProgram(document.getElementById('code-column-editor').value);
   });
 }
 

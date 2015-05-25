@@ -49,8 +49,8 @@ decimal
  ****************************************************************************/
 
 number
-  = _ "-"? decimal _ { return parseFloat(text()); }
-  / _ "-"? decimal? "." decimal _ { return parseFloat(text()); }
+  = _ "-"? decimal? "." decimal _ { return parseFloat(text()); }
+  / _ "-"? decimal _ { return parseFloat(text()); }
 
 identifier
   = _ first:[_a-z]i rest:[_a-z0-9]i* _ { return first + rest.join(''); }
@@ -110,6 +110,7 @@ expression
 nonapp_expression
   = open_paren expr:expression close_paren { return expr; }
   // TODO: function definition
+  / number:number { return {type: 'literal', kind: 'number', value: number}; }
   / kw_if condition:expression kw_then consequent:expression kw_else alternative:expression { return {type: 'app', funcExpr: {type: 'literal', kind: 'specialFunc', value: 'ifte'}, argList: [condition, consequent, alternative]}; }
   / ident:var_identifier { return {type: 'varIdent', ident: ident}; }
 

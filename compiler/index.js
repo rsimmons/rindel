@@ -224,6 +224,8 @@ function compileFunction(paramNames, bodyParts) {
       var litValueExpr;
       if (node.kind === 'specialFunc') {
         litValueExpr = 'runtime.specialFuncs.' + node.value;
+      } else if (node.kind === 'number') {
+        litValueExpr = node.value.toString();
       } else {
         throw new Error('unexpected literal kind');
       }
