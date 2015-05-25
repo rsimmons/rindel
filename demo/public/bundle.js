@@ -1,1 +1,2343 @@
-!function e(t,n,r){function o(u,s){if(!n[u]){if(!t[u]){var a="function"==typeof require&&require;if(!s&&a)return a(u,!0);if(i)return i(u,!0);var l=new Error("Cannot find module '"+u+"'");throw l.code="MODULE_NOT_FOUND",l}var p=n[u]={exports:{}};t[u][0].call(p.exports,function(e){var n=t[u][1][e];return o(n?n:e)},p,p.exports,e,t,n,r)}return n[u].exports}for(var i="function"==typeof require&&require,u=0;u<r.length;u++)o(r[u]);return o}({1:[function(e,t,n){"use strict";function r(e){if("app"==e.type){for(var t=r(e.funcExpr),n=[],o=0;o<e.argList.length;o++)n.push(r(e.argList[o]));return{state:f,node:{type:s,funcRef:t,argRefs:n}}}if("varIdent"==e.type)return{state:p,ident:e.ident};if("literal"==e.type)return{state:f,node:{type:l,kind:e.kind,value:e.value}};throw new Error("Unexpected object found in AST")}function o(e,t){function n(e){if(v.hasOwnProperty(e))return o(v[e]),v[e].node;if(y.hasOwnProperty(e))return y[e];var t={type:a,ident:e};return y[e]=t,t}function o(e){if(e.state===f);else{if(e.state===c)throw new Error("Circular binding");if(e.state!==p)throw new Error("Invalid ref state");e.state=c,e.node=n(e.ident),e.state=f}if(e.node.type===s){o(e.node.funcRef);for(var t=0;t<e.node.argRefs.length;t++)o(e.node.argRefs[t])}else if(e.node.type===a);else if(e.node.type!==l)throw new Error("Invalid node type")}function i(e){if(e.state===x)throw new Error("Cycle in binding/reference graph, can't toposort");if(e.state!==E){if(e.state=x,e.type===s){i(e.funcRef.node);for(var t=0;t<e.argRefs.length;t++)i(e.argRefs[t].node)}else if(e.type===a);else if(e.type!==l)throw new Error("Unexpected node type found during toposort");S.push(e),e.state=E}}function u(e){if(e.type===s)return"$_app"+e.topoOrder+".outputSlot";if(e.type===a)return"lexEnv."+e.ident;if(e.type===l)return"$_lit"+e.topoOrder;throw new Error("Unexpected node type found in tree")}for(var d,m=0;m<t.length;m++){var h=t[m];if("yield"===h.type){if(d)throw new Error("Multiple yield clauses found in function body");d=h}}if(!d)throw new Error("No yield clause found in function body");for(var g=r(d.expr),v={},m=0;m<t.length;m++){var h=t[m];if("binding"===h.type){if(v.hasOwnProperty(h.ident))throw new Error("Same name bound more than once");v[h.ident]=r(h.expr)}}var y={};o(g);for(var w in v)o(v[w]);var x=1,E=2,S=[];i(g.node);var b=[];b.push("(function(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {\n"),b.push("  if (argSlots.length !== "+e.length+") { throw new Error('called with wrong number of arguments'); }\n");for(var R=[],V=0,m=0;m<S.length;m++){var T=S[m];if(T.type===s){T.topoOrder=V,V++;for(var L=u(T.funcRef.node),D=[],O=0;O<T.argRefs.length;O++)D.push(u(T.argRefs[O].node));b.push("  var $_app"+T.topoOrder+" = runtime.addApplication(startTime, "+L+", ["+D.join(", ")+"], baseTopoOrder+'"+T.topoOrder+"');\n"),R.push("$_app"+T.topoOrder+".deactivator()")}else if(T.type===a);else{if(T.type!==l)throw new Error("Unexpected node type found in tree");T.topoOrder=V,V++;var I;if("specialFunc"!==T.kind)throw new Error("unexpected literal kind");I="runtime.specialFuncs."+T.value,b.push("  var $_lit"+T.topoOrder+" = runtime.createSlot(); runtime.setSlotValue($_lit"+T.topoOrder+", "+I+", startTime);\n")}}R.reverse();var C=u(S[S.length-1]);b.push("  return {\n"),b.push("    outputSlot: "+C+",\n"),b.push("    deactivator: function() {\n");for(var m=0;m<R.length;m++)b.push("      "+R[m]+";\n");return b.push("    }\n"),b.push("  };\n"),b.push("})"),b.join("")}function i(e){var t=u.parse(e),n=o([],t);return n}var u=e("./parser.js"),s=1,a=2,l=3,p=1,c=2,f=3;t.exports={compile:i}},{"./parser.js":2}],2:[function(e,t,n){t.exports=function(){function e(e,t){function n(){this.constructor=e}n.prototype=t.prototype,e.prototype=new n}function t(e,t,n,r,o,i){this.message=e,this.expected=t,this.found=n,this.offset=r,this.line=o,this.column=i,this.name="SyntaxError"}function n(e){function n(t){function n(t,n,r){var o,i;for(o=n;r>o;o++)i=e.charAt(o),"\n"===i?(t.seenCR||t.line++,t.column=1,t.seenCR=!1):"\r"===i||"\u2028"===i||"\u2029"===i?(t.line++,t.column=1,t.seenCR=!0):(t.column++,t.seenCR=!1)}return me!==t&&(me>t&&(me=0,he={line:1,column:1,seenCR:!1}),n(he,me,t),me=t),he}function r(e){ge>fe||(fe>ge&&(ge=fe,ve=[]),ve.push(e))}function o(r,o,i){function u(e){var t=1;for(e.sort(function(e,t){return e.description<t.description?-1:e.description>t.description?1:0});t<e.length;)e[t-1]===e[t]?e.splice(t,1):t++}function s(e,t){function n(e){function t(e){return e.charCodeAt(0).toString(16).toUpperCase()}return e.replace(/\\/g,"\\\\").replace(/"/g,'\\"').replace(/\x08/g,"\\b").replace(/\t/g,"\\t").replace(/\n/g,"\\n").replace(/\f/g,"\\f").replace(/\r/g,"\\r").replace(/[\x00-\x07\x0B\x0E\x0F]/g,function(e){return"\\x0"+t(e)}).replace(/[\x10-\x1F\x80-\xFF]/g,function(e){return"\\x"+t(e)}).replace(/[\u0180-\u0FFF]/g,function(e){return"\\u0"+t(e)}).replace(/[\u1080-\uFFFF]/g,function(e){return"\\u"+t(e)})}var r,o,i,u=new Array(e.length);for(i=0;i<e.length;i++)u[i]=e[i].description;return r=e.length>1?u.slice(0,-1).join(", ")+" or "+u[e.length-1]:u[0],o=t?'"'+n(t)+'"':"end of input","Expected "+r+" but "+o+" found."}var a=n(i),l=i<e.length?e.charAt(i):null;return null!==o&&u(o),new t(null!==r?r:s(o,l),o,l,i,a.line,a.column)}function i(){var e;return e=v()}function u(){var t;return I.test(e.charAt(fe))?(t=e.charAt(fe),fe++):(t=L,0===ye&&r(C)),t}function s(){var e,t;for(ye++,e=[],t=u();t!==L;)e.push(t),t=u();return ye--,e===L&&(t=L,0===ye&&r(k)),e}function a(){var t,n,o,i,u;if(t=fe,n=s(),n!==L)if(P.test(e.charAt(fe))?(o=e.charAt(fe),fe++):(o=L,0===ye&&r(F)),o!==L){for(i=[],q.test(e.charAt(fe))?(u=e.charAt(fe),fe++):(u=L,0===ye&&r(N));u!==L;)i.push(u),q.test(e.charAt(fe))?(u=e.charAt(fe),fe++):(u=L,0===ye&&r(N));i!==L?(u=s(),u!==L?(de=t,n=_(o,i),t=n):(fe=t,t=A)):(fe=t,t=A)}else fe=t,t=A;else fe=t,t=A;return t}function l(){var t,n,o,i;return t=fe,n=s(),n!==L?(e.substr(fe,5)===M?(o=M,fe+=5):(o=L,0===ye&&r(j)),o!==L?(i=s(),i!==L?(n=[n,o,i],t=n):(fe=t,t=A)):(fe=t,t=A)):(fe=t,t=A),t}function p(){var t,n,o,i;return t=fe,n=s(),n!==L?(e.substr(fe,2)===U?(o=U,fe+=2):(o=L,0===ye&&r(X)),o!==L?(i=s(),i!==L?(n=[n,o,i],t=n):(fe=t,t=A)):(fe=t,t=A)):(fe=t,t=A),t}function c(){var t,n,o,i;return t=fe,n=s(),n!==L?(e.substr(fe,4)===Y?(o=Y,fe+=4):(o=L,0===ye&&r(Q)),o!==L?(i=s(),i!==L?(n=[n,o,i],t=n):(fe=t,t=A)):(fe=t,t=A)):(fe=t,t=A),t}function f(){var t,n,o,i;return t=fe,n=s(),n!==L?(e.substr(fe,4)===B?(o=B,fe+=4):(o=L,0===ye&&r(z)),o!==L?(i=s(),i!==L?(n=[n,o,i],t=n):(fe=t,t=A)):(fe=t,t=A)):(fe=t,t=A),t}function d(){var t,n,o,i;return t=fe,n=s(),n!==L?(44===e.charCodeAt(fe)?(o=$,fe++):(o=L,0===ye&&r(H)),o!==L?(i=s(),i!==L?(n=[n,o,i],t=n):(fe=t,t=A)):(fe=t,t=A)):(fe=t,t=A),t}function m(){var t,n,o,i;return t=fe,n=s(),n!==L?(61===e.charCodeAt(fe)?(o=J,fe++):(o=L,0===ye&&r(G)),o!==L?(i=s(),i!==L?(n=[n,o,i],t=n):(fe=t,t=A)):(fe=t,t=A)):(fe=t,t=A),t}function h(){var t,n,o,i;return t=fe,n=s(),n!==L?(40===e.charCodeAt(fe)?(o=K,fe++):(o=L,0===ye&&r(W)),o!==L?(i=s(),i!==L?(n=[n,o,i],t=n):(fe=t,t=A)):(fe=t,t=A)):(fe=t,t=A),t}function g(){var t,n,o,i;return t=fe,n=s(),n!==L?(41===e.charCodeAt(fe)?(o=Z,fe++):(o=L,0===ye&&r(ee)),o!==L?(i=s(),i!==L?(n=[n,o,i],t=n):(fe=t,t=A)):(fe=t,t=A)):(fe=t,t=A),t}function v(){var e,t;return e=fe,t=y(),t!==L&&(de=e,t=te(t)),e=t}function y(){var e,t,n;if(e=fe,t=[],n=w(),n!==L)for(;n!==L;)t.push(n),n=w();else t=A;return t!==L&&(de=e,t=ne(t)),e=t}function w(){var e,t,n,r;return e=fe,t=l(),t!==L?(n=x(),n!==L?(de=e,t=re(n),e=t):(fe=e,e=A)):(fe=e,e=A),e===L&&(e=fe,t=a(),t!==L?(n=m(),n!==L?(r=x(),r!==L?(de=e,t=oe(t,r),e=t):(fe=e,e=A)):(fe=e,e=A)):(fe=e,e=A)),e}function x(){var e,t,n,r;if(e=fe,t=E(),t!==L){for(n=[],r=S();r!==L;)n.push(r),r=S();n!==L?(de=e,t=ie(t,n),e=t):(fe=e,e=A)}else fe=e,e=A;return e}function E(){var e,t,n,r,o,i,u;return e=fe,t=h(),t!==L?(n=x(),n!==L?(r=g(),r!==L?(de=e,t=ue(n),e=t):(fe=e,e=A)):(fe=e,e=A)):(fe=e,e=A),e===L&&(e=fe,t=p(),t!==L?(n=x(),n!==L?(r=c(),r!==L?(o=x(),o!==L?(i=f(),i!==L?(u=x(),u!==L?(de=e,t=se(n,o,u),e=t):(fe=e,e=A)):(fe=e,e=A)):(fe=e,e=A)):(fe=e,e=A)):(fe=e,e=A)):(fe=e,e=A),e===L&&(e=fe,t=a(),t!==L&&(de=e,t=ae(t)),e=t)),e}function S(){var e,t,n,r;return e=fe,t=h(),t!==L?(n=b(),n!==L?(r=g(),r!==L?(de=e,t=le(n),e=t):(fe=e,e=A)):(fe=e,e=A)):(fe=e,e=A),e}function b(){var e,t,n,r;return e=fe,t=x(),t!==L?(n=d(),n!==L?(r=b(),r!==L?(de=e,t=pe(t,r),e=t):(fe=e,e=A)):(fe=e,e=A)):(fe=e,e=A),e===L&&(e=fe,t=x(),t!==L&&(de=e,t=ce(t)),e=t),e}function R(e,t){for(var n=e,r=0;r<t.length;r++)n={type:"app",funcExpr:n,argList:t[r]};return n}var V,T=arguments.length>1?arguments[1]:{},L={},D={start:i},O=i,I=/^[ \t\n\r]/,C={type:"class",value:"[ \\t\\n\\r]",description:"[ \\t\\n\\r]"},k={type:"other",description:"whitespace"},A=L,P=/^[_a-z]/i,F={type:"class",value:"[_a-z]i",description:"[_a-z]i"},q=/^[_a-z0-9]/i,N={type:"class",value:"[_a-z0-9]i",description:"[_a-z0-9]i"},_=function(e,t){return e+t.join("")},M="yield",j={type:"literal",value:"yield",description:'"yield"'},U="if",X={type:"literal",value:"if",description:'"if"'},Y="then",Q={type:"literal",value:"then",description:'"then"'},B="else",z={type:"literal",value:"else",description:'"else"'},$=",",H={type:"literal",value:",",description:'","'},J="=",G={type:"literal",value:"=",description:'"="'},K="(",W={type:"literal",value:"(",description:'"("'},Z=")",ee={type:"literal",value:")",description:'")"'},te=function(e){return e},ne=function(e){return e},re=function(e){return{type:"yield",expr:e}},oe=function(e,t){return{type:"binding",ident:e,expr:t}},ie=function(e,t){return R(e,t)},ue=function(e){return e},se=function(e,t,n){return{type:"app",funcExpr:{type:"literal",kind:"specialFunc",value:"ifte"},argList:[e,t,n]}},ae=function(e){return{type:"varIdent",ident:e}},le=function(e){return e},pe=function(e,t){return[e].concat(t)},ce=function(e){return[e]},fe=0,de=0,me=0,he={line:1,column:1,seenCR:!1},ge=0,ve=[],ye=0;if("startRule"in T){if(!(T.startRule in D))throw new Error("Can't start parsing from rule \""+T.startRule+'".');O=D[T.startRule]}if(V=O(),V!==L&&fe===e.length)return V;throw V!==L&&fe<e.length&&r({type:"end",description:"end of input"}),o(null,ve,ge)}return e(t,Error),{SyntaxError:t,parse:n}}()},{}],3:[function(e,t,n){"use strict";t.exports={code:"yield mousePos",main:main,commentary:"<p>This program simply yields the mouse position unchanged, causing the square to be at the same position as the mouse.</p>"}},{}],4:[function(e,t,n){"use strict";t.exports={code:"yield delay1(mousePos)",main:main,commentary:'<p>This program yields the mouse position delayed by 1 second. Note the behavior of the "JS timeout outstanding" value on the left, as you alternately move the mouse and stop moving it for a bit. If there are "buffered" mouse movements still to be played out, there is a timeout set for those. If the mouse has been still for a least one second, no changes will be buffered and so no timeout will be set.</p><p>Also note, if you quickly move the pointer and click to start this same program again, the square jumps to match the mouse position. This is because the delay1 function relays its initial input as its output for the first second.</p>'}},{}],5:[function(e,t,n){"use strict";t.exports={code:"yield if mouseDown then mousePos else delay1(mousePos)",main:main,commentary:'<p>This program switches between yielding the current mouse position and the delayed mouse position, based on whether the mouse button is down. The if/then/else syntax is an expression (like the ternary operator "?:"), not a statement.</p><p>Note that even if the mouse button is held down, the delayed position is computed. This is necessary to avoid "time leaks", i.e. we don\'t know when we\'ll need the value when the mouse button is released, so we must keep it up to date.</p>'}},{}],6:[function(e,t,n){"use strict";t.exports={code:"yield (if mouseDown then id else delay1)(mousePos)",main:main,commentary:'<p>This program illustrates a subtle and important detail, when compared to the previous program. In this program, we apply a function to the mouse position, but the value of that function we apply is itself dynamic. It switches from the value "id" (identity function) to the value "delay1". This is similar to the previous program, except when the mouse is released, the square stays at the current mouse position. This is because when id or delay1 are switched into action, they always start "from scratch". Only one is running at a time. And when delay1 starts, it mirrors its input for the first second. In the previous program, delay1 is always running.</p>'}},{}],7:[function(e,t,n){"use strict";function r(e,t,n,r,o){if(1!==n.length)throw new Error("got wrong number of arguments");var i=e.createSlot(),u=n[0],s=[],a=null,l=function(){if(s.length>0&&!a){var t=s[0],n={time:t.time,topoOrder:r,closure:p};e.priorityQueue.insert(n),a=n}},p=function(t){if(0===s.length)throw new Error("no changes to make");var n=s.shift();if(t!==n.time)throw new Error("times do not match");e.setSlotValue(i,n.value,t),a=null,l()},c=function(t){var n=e.getSlotValue(u);s.push({time:t+1,value:n}),l()},f=function(t){e.priorityQueue.insert({time:t,topoOrder:r,closure:c})},d=e.getSlotValue(u);return e.setSlotValue(i,d,t),e.addTrigger(u,f),{outputSlot:i,deactivator:function(){e.removeTrigger(u,f),a&&e.priorityQueue.remove(a)}}}var o=e("./primUtils"),i=o.liftN;t.exports={add:i(function(e,t){return e+t},2),sub:i(function(e,t){return e-t},2),id:i(function(e){return e},1),delay1:r}},{"./primUtils":12}],8:[function(e,t,n){"use strict";var r=e("./pq"),o=function(){this.priorityQueue=new r};o.prototype.createLexEnv=function(e){return this.deriveLexEnv(null,e)},o.prototype.deriveLexEnv=function(e,t){var n={};for(var r in t)t.hasOwnProperty(r)&&(n[r]={value:t[r],writeable:!1,enumerable:!0});return Object.create(e,n)},o.prototype.createSlot=function(){return{currentValue:void 0,triggers:[]}},o.prototype.getSlotValue=function(e){return e.value},o.prototype.setSlotValue=function(e,t,n){e.value=t;for(var r=0;r<e.triggers.length;r++)e.triggers[r](n)},o.prototype.addTrigger=function(e,t){e.triggers.push(t)},o.prototype.removeTrigger=function(e,t){for(var n,r=0;r<e.triggers.length;r++)if(e.triggers[r]===t){if(void 0!==n)throw new Error("found two identical triggers");n=r}if(void 0===n)throw new Error("no matching trigger found");e.triggers.splice(n,1)},o.prototype.runToTime=function(e){for(;;){if(this.priorityQueue.isEmpty())return null;var t=this.priorityQueue.peek();if(t.time>e)return t.time;this.runNextTask()}},o.prototype.runNextTask=function(){var e=this.priorityQueue.pull();e.closure(e.time)},o.prototype.isRunnable=function(){return!this.priorityQueue.isEmpty()},o.prototype.addApplication=function(e,t,n,r,o){function i(e){void 0!==u&&u();var i=s.getSlotValue(t),l=i(s,e,n,r,o);if(void 0===l)throw new Error("activator did not return result");u=l.deactivator,s.setSlotValue(a,s.getSlotValue(l.outputSlot),e),s.addTrigger(l.outputSlot,function(e){s.setSlotValue(a,s.getSlotValue(l.outputSlot),e)})}var u,s=this,a=s.createSlot();return i(e),s.addTrigger(t,i),{outputSlot:a,deactivator:function(){s.removeTrigger(t,i),u()}}},o.prototype.builtins=e("./builtins"),o.prototype.specialFuncs=e("./specialFuncs"),t.exports=o},{"./builtins":7,"./pq":11,"./specialFuncs":13}],9:[function(e,t,n){t.exports=e("./lib/heap")},{"./lib/heap":10}],10:[function(e,t,n){(function(){var e,r,o,i,u,s,a,l,p,c,f,d,m,h,g;o=Math.floor,c=Math.min,r=function(e,t){return t>e?-1:e>t?1:0},p=function(e,t,n,i,u){var s;if(null==n&&(n=0),null==u&&(u=r),0>n)throw new Error("lo must be non-negative");for(null==i&&(i=e.length);i>n;)s=o((n+i)/2),u(t,e[s])<0?i=s:n=s+1;return[].splice.apply(e,[n,n-n].concat(t)),t},s=function(e,t,n){return null==n&&(n=r),e.push(t),h(e,0,e.length-1,n)},u=function(e,t){var n,o;return null==t&&(t=r),n=e.pop(),e.length?(o=e[0],e[0]=n,g(e,0,t)):o=n,o},l=function(e,t,n){var o;return null==n&&(n=r),o=e[0],e[0]=t,g(e,0,n),o},a=function(e,t,n){var o;return null==n&&(n=r),e.length&&n(e[0],t)<0&&(o=[e[0],t],t=o[0],e[0]=o[1],g(e,0,n)),t},i=function(e,t){var n,i,u,s,a,l;for(null==t&&(t=r),s=function(){l=[];for(var t=0,n=o(e.length/2);n>=0?n>t:t>n;n>=0?t++:t--)l.push(t);return l}.apply(this).reverse(),a=[],i=0,u=s.length;u>i;i++)n=s[i],a.push(g(e,n,t));return a},m=function(e,t,n){var o;return null==n&&(n=r),o=e.indexOf(t),-1!==o?(h(e,0,o,n),g(e,o,n)):void 0},f=function(e,t,n){var o,u,s,l,p;if(null==n&&(n=r),u=e.slice(0,t),!u.length)return u;for(i(u,n),p=e.slice(t),s=0,l=p.length;l>s;s++)o=p[s],a(u,o,n);return u.sort(n).reverse()},d=function(e,t,n){var o,s,a,l,f,d,m,h,g,v;if(null==n&&(n=r),10*t<=e.length){if(l=e.slice(0,t).sort(n),!l.length)return l;for(a=l[l.length-1],h=e.slice(t),f=0,m=h.length;m>f;f++)o=h[f],n(o,a)<0&&(p(l,o,0,null,n),l.pop(),a=l[l.length-1]);return l}for(i(e,n),v=[],s=d=0,g=c(t,e.length);g>=0?g>d:d>g;s=g>=0?++d:--d)v.push(u(e,n));return v},h=function(e,t,n,o){var i,u,s;for(null==o&&(o=r),i=e[n];n>t&&(s=n-1>>1,u=e[s],o(i,u)<0);)e[n]=u,n=s;return e[n]=i},g=function(e,t,n){var o,i,u,s,a;for(null==n&&(n=r),i=e.length,a=t,u=e[t],o=2*t+1;i>o;)s=o+1,i>s&&!(n(e[o],e[s])<0)&&(o=s),e[t]=e[o],t=o,o=2*t+1;return e[t]=u,h(e,a,t,n)},e=function(){function e(e){this.cmp=null!=e?e:r,this.nodes=[]}return e.push=s,e.pop=u,e.replace=l,e.pushpop=a,e.heapify=i,e.updateItem=m,e.nlargest=f,e.nsmallest=d,e.prototype.push=function(e){return s(this.nodes,e,this.cmp)},e.prototype.pop=function(){return u(this.nodes,this.cmp)},e.prototype.peek=function(){return this.nodes[0]},e.prototype.contains=function(e){return-1!==this.nodes.indexOf(e)},e.prototype.replace=function(e){return l(this.nodes,e,this.cmp)},e.prototype.pushpop=function(e){return a(this.nodes,e,this.cmp)},e.prototype.heapify=function(){return i(this.nodes,this.cmp)},e.prototype.updateItem=function(e){return m(this.nodes,e,this.cmp)},e.prototype.clear=function(){return this.nodes=[]},e.prototype.empty=function(){return 0===this.nodes.length},e.prototype.size=function(){return this.nodes.length},e.prototype.clone=function(){var t;return t=new e,t.nodes=this.nodes.slice(0),t},e.prototype.toArray=function(){return this.nodes.slice(0)},e.prototype.insert=e.prototype.push,e.prototype.top=e.prototype.peek,e.prototype.front=e.prototype.peek,e.prototype.has=e.prototype.contains,e.prototype.copy=e.prototype.clone,e}(),function(e,r){return"function"==typeof define&&define.amd?define([],r):"object"==typeof n?t.exports=r():e.Heap=r()}(this,function(){return e})}).call(this)},{}],11:[function(e,t,n){"use strict";var r=e("heap"),o=function(){this.heap=new r(function(e,t){return e.time===t.time?e.topoOrder<t.topoOrder?-1:t.topoOrder>e.topoOrder?1:0:e.time-t.time})};o.prototype.isEmpty=function(){return this.pullRemoved(),this.heap.empty()},o.prototype.insert=function(e){this.heap.push(e)},o.prototype.peek=function(){return this.pullRemoved(),this.heap.peek()},o.prototype.pull=function(){this.pullRemoved();for(var e=this.heap.pop();;){if(this.pullRemoved(),this.heap.empty())break;var t=this.heap.peek();if(t.time!==e.time||t.topoOrder!==e.topoOrder||t.closure!==e.closure)break;this.heap.pop()}return e},o.prototype.remove=function(e){e.removed=!0},o.prototype.pullRemoved=function(){for(;!this.heap.empty();){var e=this.heap.peek();if(!e.removed)break;this.heap.pop()}},t.exports=o},{heap:9}],12:[function(e,t,n){"use strict";function r(e,t){return function(n,r,o,i,u){if(o.length!==t)throw new Error("got wrong number of arguments");var s=n.createSlot(),a=function(r){for(var i=[],u=0;t>u;u++)i.push(n.getSlotValue(o[u]));var a=e.apply(null,i);n.setSlotValue(s,a,r)},l=function(e){n.priorityQueue.insert({time:e,topoOrder:i,closure:a})};a(r);for(var p=0;t>p;p++)n.addTrigger(o[p],l);return{outputSlot:s,deactivator:function(){for(var e=0;t>e;e++)n.removeTrigger(o[e],l)}}}}t.exports={liftN:r}},{}],13:[function(e,t,n){"use strict";var r=e("./primUtils"),o=r.liftN;t.exports={ifte:o(function(e,t,n){return e?t:n},3)}},{"./primUtils":12}],14:[function(require,module,exports){"use strict";function getMasterTime(){return.001*(Date.now()-initialDateNow)}function tryRunning(){if(runtime.isRunnable()){var e=getMasterTime(),t=runtime.runToTime(e);t&&!timeoutID&&(timeoutID=window.setTimeout(function(){timeoutID=null,updateInternalsDisplay(),tryRunning()},1e3*(t-e)),updateInternalsDisplay())}}function updateInternalsDisplay(){var e=[];e.push("Output changes: "+internals.outputChanges),e.push("JS timeout outstanding: "+!!timeoutID),document.getElementById("internals-notes").innerHTML=e.join("<br>")}function witnessOutput(e){var t=currentResult.outputSlot.value;internals.outputChanges+=1,updateInternalsDisplay();var n=document.getElementById("square");n.style.left=t.x+1+"px",n.style.top=t.y+1+"px"}function startCompiledProgram(e){if(currentResult){if(currentResult.deactivator(),runtime.removeTrigger(currentResult.outputSlot,witnessOutput),timeoutID&&(window.clearTimeout(timeoutID),timeoutID=null,updateInternalsDisplay()),runtime.isRunnable())throw new Error("something went wrong");for(var t in rootLexEnv)if(rootLexEnv[t].triggers.length>0)throw new Error("something went wrong")}runtime=new Runtime,rootLexEnv=runtime.createLexEnv({add:runtime.createSlot(),delay1:runtime.createSlot(),ifte:runtime.createSlot(),id:runtime.createSlot(),mouseX:runtime.createSlot(),mouseY:runtime.createSlot(),mousePos:runtime.createSlot(),mouseDown:runtime.createSlot()}),runtime.setSlotValue(rootLexEnv.add,runtime.builtins.add,0),runtime.setSlotValue(rootLexEnv.delay1,runtime.builtins.delay1,0),runtime.setSlotValue(rootLexEnv.ifte,runtime.builtins.ifte,0),runtime.setSlotValue(rootLexEnv.id,runtime.builtins.id,0),runtime.setSlotValue(rootLexEnv.mouseX,inputValues.mouseX,0),runtime.setSlotValue(rootLexEnv.mouseY,inputValues.mouseY,0),runtime.setSlotValue(rootLexEnv.mousePos,{x:inputValues.mouseX,y:inputValues.mouseY},0),runtime.setSlotValue(rootLexEnv.mouseDown,inputValues.mouseDown,0),internals={outputChanges:0},updateInternalsDisplay(),currentResult=e(runtime,0,[],"",rootLexEnv),witnessOutput(0),runtime.addTrigger(currentResult.outputSlot,witnessOutput),tryRunning()}function compileAndStartProgram(code){var mainFuncSrc=Compiler.compile(code);console.log("compiled to JS:"),console.log(mainFuncSrc);var mainFunc=eval(mainFuncSrc);startCompiledProgram(mainFunc)}function startDemoProg(e){document.getElementById("code-column-editor").value=e.code,document.getElementById("code-column-commentary").innerHTML=e.commentary||"",compileAndStartProgram(e.code)}function createDemoControls(){var e=document.getElementById("demos-list");for(var t in demoProgs){var n=document.createElement("LI");n.setAttribute("class","demo-choice"),n.appendChild(document.createTextNode(t)),e.appendChild(n)}e.firstChild.classList.add("demo-active"),document.addEventListener("click",function(t){if(t.target.classList.contains("demo-choice")){for(var n=0;n<e.childNodes.length;n++)e.childNodes[n].classList.remove("demo-active");t.target.classList.add("demo-active");var r=t.target.textContent,o=demoProgs[r];startDemoProg(o)}},!1),document.getElementById("compile-button").addEventListener("click",function(e){compileAndStartProgram(Compiler.compile(document.getElementById("code-column-editor").value))})}var Runtime=require("../runtime"),Compiler=require("../compiler"),demoProgs={"same position":require("./progs/prog0"),"delayed position":require("./progs/prog1"),"switch on button":require("./progs/prog2"),"dynamic application":require("./progs/prog3")},initialDateNow=Date.now(),runtime,rootLexEnv,timeoutID,currentResult,inputValues={mouseX:0,mouseY:0,mouseDown:!1},internals;document.addEventListener("mousemove",function(e){var t=getMasterTime();inputValues.mouseX=e.clientX||e.pageX,inputValues.mouseY=e.clientY||e.pageY,runtime.setSlotValue(rootLexEnv.mouseX,inputValues.mouseX,t),runtime.setSlotValue(rootLexEnv.mouseY,inputValues.mouseY,t),runtime.setSlotValue(rootLexEnv.mousePos,{x:inputValues.mouseX,y:inputValues.mouseY},t),tryRunning()},!1),document.addEventListener("mousedown",function(e){if(0===e.button){var t=getMasterTime();inputValues.mouseDown=!0,runtime.setSlotValue(rootLexEnv.mouseDown,inputValues.mouseDown,t),tryRunning()}},!1),document.addEventListener("mouseup",function(e){if(0===e.button){var t=getMasterTime();inputValues.mouseDown=!1,runtime.setSlotValue(rootLexEnv.mouseDown,inputValues.mouseDown,t),tryRunning()}},!1),document.addEventListener("DOMContentLoaded",function(){createDemoControls(),startDemoProg(demoProgs["same position"])})},{"../compiler":1,"../runtime":8,"./progs/prog0":3,"./progs/prog1":4,"./progs/prog2":5,"./progs/prog3":6}]},{},[14]);
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+'use strict';
+
+var parser = require('./parser.js');
+
+var NODE_APP = 1;
+var NODE_LEXENV = 2;
+var NODE_LITERAL = 3;
+
+var REF_UNRESOLVED = 1;
+var REF_RESOLVING = 2;
+var REF_RESOLVED = 3;
+
+// returns a 'ref' object
+function createNodesRefs(exprObj) {
+  if (exprObj.type == 'app') {
+    var funcRef = createNodesRefs(exprObj.funcExpr);
+    var argRefs = [];
+    for (var i = 0; i < exprObj.argList.length; i++) {
+      argRefs.push(createNodesRefs(exprObj.argList[i]));
+    }
+    return {
+      state: REF_RESOLVED,
+      node: {
+        type: NODE_APP,
+        funcRef: funcRef,
+        argRefs: argRefs,
+      },
+    };
+  } else if (exprObj.type == 'varIdent') {
+    return {
+      state: REF_UNRESOLVED,
+      ident: exprObj.ident,
+    };
+  } else if (exprObj.type == 'literal') {
+    return {
+      state: REF_RESOLVED,
+      node: {
+        type: NODE_LITERAL,
+        kind: exprObj.kind,
+        value: exprObj.value,
+      },
+    };
+  } else {
+    throw new Error('Unexpected object found in AST');
+  }
+}
+
+function compileFunction(paramNames, bodyParts) {
+  // verify that there is exactly one yield clause
+  var yieldObj;
+  for (var i = 0; i < bodyParts.length; i++) {
+    var bp = bodyParts[i];
+    if (bp.type === 'yield') {
+      if (yieldObj) {
+        throw new Error('Multiple yield clauses found in function body');
+      }
+      yieldObj = bp;
+    }
+  }
+
+  if (!yieldObj) {
+    throw new Error('No yield clause found in function body');
+  }
+
+  // build explicit graph of two types of nodes:
+  // - nodes corresponding to slots in the lexical environment
+  // - nodes corresponding to local "register" slots we will create
+
+  // create node tree for yield expression
+  var outputNode = createNodesRefs(yieldObj.expr);
+
+  // create node trees for each binding
+  var locallyBoundNames = {}; // names bound in this function body mapped to refs (parameters are not considered bindings)
+  for (var i = 0; i < bodyParts.length; i++) {
+    var bp = bodyParts[i];
+    if (bp.type === 'binding') {
+      if (locallyBoundNames.hasOwnProperty(bp.ident)) {
+        throw new Error('Same name bound more than once');
+      }
+      locallyBoundNames[bp.ident] = createNodesRefs(bp.expr);
+    }
+  }
+
+  var usedLexEnvNames = {}; // mapping from names referred to in lexical environment to their nodes (NOT refs)
+
+  // resolve identifier to a node, and make sure any downstream refs are also resolved. returns node
+  function resolveIdentRecursive(ident) {
+    if (locallyBoundNames.hasOwnProperty(ident)) {
+      resolveRefRecursive(locallyBoundNames[ident]);
+      return locallyBoundNames[ident].node;
+    } else {
+      // assume name must refer to something defined in lexical environment
+      if (usedLexEnvNames.hasOwnProperty(ident)) {
+        // resolve to already-created lexenv node
+        return usedLexEnvNames[ident];
+      } else {
+        // TODO: check that this is a legitimate reference, i.e. ident is actually in lexical environment
+
+        var newNode = {
+          type: NODE_LEXENV,
+          ident: ident,
+        };
+        usedLexEnvNames[ident] = newNode;
+        return newNode;
+      }
+    }
+  }
+
+  // resolve given ref, and recursively resolve any refs found in downstream nodes. returns nothing
+  function resolveRefRecursive(ref) {
+    if (ref.state === REF_RESOLVED) {
+      // do nothing
+    } else if (ref.state === REF_RESOLVING) {
+      throw new Error('Circular binding');
+    } else if (ref.state === REF_UNRESOLVED) {
+      ref.state = REF_RESOLVING;
+      ref.node = resolveIdentRecursive(ref.ident);
+      ref.state = REF_RESOLVED;
+    } else {
+      throw new Error('Invalid ref state');
+    }
+
+    // now that node is ensured to be resolved, recursively make sure everything downstream from it is resolved
+    // TODO: it seems like there's duplicate work happening here. we could put flag on nodes to say that anything
+    //  downstream of it was already resolved?
+    if (ref.node.type === NODE_APP) {
+      resolveRefRecursive(ref.node.funcRef);
+      for (var i = 0; i < ref.node.argRefs.length; i++) {
+        resolveRefRecursive(ref.node.argRefs[i]);
+      }
+    } else if (ref.node.type === NODE_LEXENV) {
+      // nothing to resolve
+    } else if (ref.node.type === NODE_LITERAL) {
+      // nothing to resolve
+    } else {
+      throw new Error('Invalid node type');
+    }
+  }
+
+  // resolve references to either lexical environment or local bindings
+  resolveRefRecursive(outputNode);
+  for (var k in locallyBoundNames) {
+    resolveRefRecursive(locallyBoundNames[k]);
+  }
+
+  // DFS from outputNode to get toposorted list of nodes
+  var STATE_ENTERED = 1; // node has been entered in traversal, but not yet added to ordering
+  var STATE_ADDED = 2; // node has been added to ordering, and is "done"
+  var sortedNodes = [];
+  function toposortVisit(node) {
+    if (node.state === STATE_ENTERED) {
+      throw new Error('Cycle in binding/reference graph, can\'t toposort');
+    } else if (node.state === STATE_ADDED) {
+      // already taken care of
+      return;
+    }
+
+    node.state = STATE_ENTERED;
+
+    // visit any nodes this node depends on
+    if (node.type === NODE_APP) {
+      toposortVisit(node.funcRef.node);
+      for (var i = 0; i < node.argRefs.length; i++) {
+        toposortVisit(node.argRefs[i].node);
+      }
+    } else if (node.type === NODE_LEXENV) {
+      // nothing to do since leaf
+    } else if (node.type === NODE_LITERAL) {
+      // nothing to do since leaf
+    } else {
+      throw new Error('Unexpected node type found during toposort');
+    }
+
+    // finally, add this node to sort order and update its state
+    sortedNodes.push(node);
+    node.state = STATE_ADDED;
+  }
+  toposortVisit(outputNode.node);
+
+  // begin code generation
+  var codeFragments = [];
+
+  // this is sort of ghetto but will do for now
+  codeFragments.push('(function(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {\n');
+  codeFragments.push('  if (argSlots.length !== ' + paramNames.length + ') { throw new Error(\'called with wrong number of arguments\'); }\n');
+
+  function getNodeSlotExpr(node) {
+    if (node.type === NODE_APP) {
+      return '$_app' + node.topoOrder + '.outputSlot';
+    } else if (node.type === NODE_LEXENV) {
+      return 'lexEnv.' + node.ident;
+    } else if (node.type === NODE_LITERAL) {
+      return '$_lit' + node.topoOrder;
+    } else {
+      throw new Error('Unexpected node type found in tree');
+    }
+  }
+
+  // iterate sorted nodes, doing some code generation
+  var deactivatorCalls = [];
+  var nextTopoIdx = 0;
+  for (var i = 0; i < sortedNodes.length; i++) {
+    var node = sortedNodes[i];
+    if (node.type === NODE_APP) {
+      node.topoOrder = nextTopoIdx;
+      nextTopoIdx++;
+
+      var funcSlotExpr = getNodeSlotExpr(node.funcRef.node);
+      var argSlotExprs = [];
+      for (var j = 0; j < node.argRefs.length; j++) {
+        argSlotExprs.push(getNodeSlotExpr(node.argRefs[j].node));
+      }
+
+      // TODO: MUST zero-pad topoOrder before adding to baseTopoOrder or bad bad things will happen in larger functions
+      codeFragments.push('  var $_app' + node.topoOrder + ' = runtime.addApplication(startTime, ' + funcSlotExpr + ', [' + argSlotExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\');\n');
+
+      deactivatorCalls.push('$_app' + node.topoOrder + '.deactivator()');
+    } else if (node.type === NODE_LEXENV) {
+      // do nothing
+    } else if (node.type === NODE_LITERAL) {
+      node.topoOrder = nextTopoIdx;
+      nextTopoIdx++;
+
+      var litValueExpr;
+      if (node.kind === 'specialFunc') {
+        litValueExpr = 'runtime.specialFuncs.' + node.value;
+      } else {
+        throw new Error('unexpected literal kind');
+      }
+
+      codeFragments.push('  var $_lit' + node.topoOrder + ' = runtime.createSlot(); runtime.setSlotValue($_lit' + node.topoOrder + ', ' + litValueExpr + ', startTime);\n');
+    } else {
+      throw new Error('Unexpected node type found in tree');
+    }
+  }
+  // I don't think these actually need to be reversed for things to work correctly,
+  //  but it just seems appropriate.
+  deactivatorCalls.reverse();
+
+  // generate return statement
+  var outputSlotExpr = getNodeSlotExpr(sortedNodes[sortedNodes.length-1]);
+  codeFragments.push('  return {\n');
+  codeFragments.push('    outputSlot: ' + outputSlotExpr + ',\n');
+  codeFragments.push('    deactivator: function() {\n');
+
+  for (var i = 0; i < deactivatorCalls.length; i++) {
+    codeFragments.push('      ' + deactivatorCalls[i] + ';\n');
+  }
+
+  codeFragments.push('    }\n');
+  codeFragments.push('  };\n');
+  codeFragments.push('})');
+
+  // join generated code fragments and return
+  return codeFragments.join('');
+}
+
+function compile(sourceCode) {
+  // parse source code, to get our top-level AST structure, which is a list of "function body parts"
+  var topFuncBodyParts = parser.parse(sourceCode);
+
+  // compile the top-level parts, treating them as implicitly wrapped in no-parameter "main" definition
+  var targetCode = compileFunction([], topFuncBodyParts);
+
+  return targetCode;
+}
+
+module.exports = {
+  compile: compile,
+};
+
+},{"./parser.js":2}],2:[function(require,module,exports){
+module.exports = (function() {
+  /*
+   * Generated by PEG.js 0.8.0.
+   *
+   * http://pegjs.majda.cz/
+   */
+
+  function peg$subclass(child, parent) {
+    function ctor() { this.constructor = child; }
+    ctor.prototype = parent.prototype;
+    child.prototype = new ctor();
+  }
+
+  function SyntaxError(message, expected, found, offset, line, column) {
+    this.message  = message;
+    this.expected = expected;
+    this.found    = found;
+    this.offset   = offset;
+    this.line     = line;
+    this.column   = column;
+
+    this.name     = "SyntaxError";
+  }
+
+  peg$subclass(SyntaxError, Error);
+
+  function parse(input) {
+    var options = arguments.length > 1 ? arguments[1] : {},
+
+        peg$FAILED = {},
+
+        peg$startRuleFunctions = { start: peg$parsestart },
+        peg$startRuleFunction  = peg$parsestart,
+
+        peg$c0 = /^[ \t\n\r]/,
+        peg$c1 = { type: "class", value: "[ \\t\\n\\r]", description: "[ \\t\\n\\r]" },
+        peg$c2 = { type: "other", description: "whitespace" },
+        peg$c3 = [],
+        peg$c4 = peg$FAILED,
+        peg$c5 = /^[0-9]/,
+        peg$c6 = { type: "class", value: "[0-9]", description: "[0-9]" },
+        peg$c7 = null,
+        peg$c8 = "-",
+        peg$c9 = { type: "literal", value: "-", description: "\"-\"" },
+        peg$c10 = function() { return parseFloat(text()); },
+        peg$c11 = ".",
+        peg$c12 = { type: "literal", value: ".", description: "\".\"" },
+        peg$c13 = /^[_a-z]/i,
+        peg$c14 = { type: "class", value: "[_a-z]i", description: "[_a-z]i" },
+        peg$c15 = /^[_a-z0-9]/i,
+        peg$c16 = { type: "class", value: "[_a-z0-9]i", description: "[_a-z0-9]i" },
+        peg$c17 = function(first, rest) { return first + rest.join(''); },
+        peg$c18 = "yield",
+        peg$c19 = { type: "literal", value: "yield", description: "\"yield\"" },
+        peg$c20 = "if",
+        peg$c21 = { type: "literal", value: "if", description: "\"if\"" },
+        peg$c22 = "then",
+        peg$c23 = { type: "literal", value: "then", description: "\"then\"" },
+        peg$c24 = "else",
+        peg$c25 = { type: "literal", value: "else", description: "\"else\"" },
+        peg$c26 = ",",
+        peg$c27 = { type: "literal", value: ",", description: "\",\"" },
+        peg$c28 = "=",
+        peg$c29 = { type: "literal", value: "=", description: "\"=\"" },
+        peg$c30 = "(",
+        peg$c31 = { type: "literal", value: "(", description: "\"(\"" },
+        peg$c32 = ")",
+        peg$c33 = { type: "literal", value: ")", description: "\")\"" },
+        peg$c34 = function(topBody) { return topBody; },
+        peg$c35 = function(parts) { return parts; },
+        peg$c36 = function(expr) { return {type: 'yield', expr: expr}; },
+        peg$c37 = function(ident, expr) { return {type: 'binding', ident: ident, expr: expr}; },
+        peg$c38 = function(initialExpr, argLists) { return nestAnyApplications(initialExpr, argLists); },
+        peg$c39 = function(expr) { return expr; },
+        peg$c40 = function(condition, consequent, alternative) { return {type: 'app', funcExpr: {type: 'literal', kind: 'specialFunc', value: 'ifte'}, argList: [condition, consequent, alternative]}; },
+        peg$c41 = function(ident) { return {type: 'varIdent', ident: ident}; },
+        peg$c42 = function(argList) { return argList; },
+        peg$c43 = function(first, rest) { return [first].concat(rest); },
+        peg$c44 = function(expr) { return [expr]; },
+
+        peg$currPos          = 0,
+        peg$reportedPos      = 0,
+        peg$cachedPos        = 0,
+        peg$cachedPosDetails = { line: 1, column: 1, seenCR: false },
+        peg$maxFailPos       = 0,
+        peg$maxFailExpected  = [],
+        peg$silentFails      = 0,
+
+        peg$result;
+
+    if ("startRule" in options) {
+      if (!(options.startRule in peg$startRuleFunctions)) {
+        throw new Error("Can't start parsing from rule \"" + options.startRule + "\".");
+      }
+
+      peg$startRuleFunction = peg$startRuleFunctions[options.startRule];
+    }
+
+    function text() {
+      return input.substring(peg$reportedPos, peg$currPos);
+    }
+
+    function offset() {
+      return peg$reportedPos;
+    }
+
+    function line() {
+      return peg$computePosDetails(peg$reportedPos).line;
+    }
+
+    function column() {
+      return peg$computePosDetails(peg$reportedPos).column;
+    }
+
+    function expected(description) {
+      throw peg$buildException(
+        null,
+        [{ type: "other", description: description }],
+        peg$reportedPos
+      );
+    }
+
+    function error(message) {
+      throw peg$buildException(message, null, peg$reportedPos);
+    }
+
+    function peg$computePosDetails(pos) {
+      function advance(details, startPos, endPos) {
+        var p, ch;
+
+        for (p = startPos; p < endPos; p++) {
+          ch = input.charAt(p);
+          if (ch === "\n") {
+            if (!details.seenCR) { details.line++; }
+            details.column = 1;
+            details.seenCR = false;
+          } else if (ch === "\r" || ch === "\u2028" || ch === "\u2029") {
+            details.line++;
+            details.column = 1;
+            details.seenCR = true;
+          } else {
+            details.column++;
+            details.seenCR = false;
+          }
+        }
+      }
+
+      if (peg$cachedPos !== pos) {
+        if (peg$cachedPos > pos) {
+          peg$cachedPos = 0;
+          peg$cachedPosDetails = { line: 1, column: 1, seenCR: false };
+        }
+        advance(peg$cachedPosDetails, peg$cachedPos, pos);
+        peg$cachedPos = pos;
+      }
+
+      return peg$cachedPosDetails;
+    }
+
+    function peg$fail(expected) {
+      if (peg$currPos < peg$maxFailPos) { return; }
+
+      if (peg$currPos > peg$maxFailPos) {
+        peg$maxFailPos = peg$currPos;
+        peg$maxFailExpected = [];
+      }
+
+      peg$maxFailExpected.push(expected);
+    }
+
+    function peg$buildException(message, expected, pos) {
+      function cleanupExpected(expected) {
+        var i = 1;
+
+        expected.sort(function(a, b) {
+          if (a.description < b.description) {
+            return -1;
+          } else if (a.description > b.description) {
+            return 1;
+          } else {
+            return 0;
+          }
+        });
+
+        while (i < expected.length) {
+          if (expected[i - 1] === expected[i]) {
+            expected.splice(i, 1);
+          } else {
+            i++;
+          }
+        }
+      }
+
+      function buildMessage(expected, found) {
+        function stringEscape(s) {
+          function hex(ch) { return ch.charCodeAt(0).toString(16).toUpperCase(); }
+
+          return s
+            .replace(/\\/g,   '\\\\')
+            .replace(/"/g,    '\\"')
+            .replace(/\x08/g, '\\b')
+            .replace(/\t/g,   '\\t')
+            .replace(/\n/g,   '\\n')
+            .replace(/\f/g,   '\\f')
+            .replace(/\r/g,   '\\r')
+            .replace(/[\x00-\x07\x0B\x0E\x0F]/g, function(ch) { return '\\x0' + hex(ch); })
+            .replace(/[\x10-\x1F\x80-\xFF]/g,    function(ch) { return '\\x'  + hex(ch); })
+            .replace(/[\u0180-\u0FFF]/g,         function(ch) { return '\\u0' + hex(ch); })
+            .replace(/[\u1080-\uFFFF]/g,         function(ch) { return '\\u'  + hex(ch); });
+        }
+
+        var expectedDescs = new Array(expected.length),
+            expectedDesc, foundDesc, i;
+
+        for (i = 0; i < expected.length; i++) {
+          expectedDescs[i] = expected[i].description;
+        }
+
+        expectedDesc = expected.length > 1
+          ? expectedDescs.slice(0, -1).join(", ")
+              + " or "
+              + expectedDescs[expected.length - 1]
+          : expectedDescs[0];
+
+        foundDesc = found ? "\"" + stringEscape(found) + "\"" : "end of input";
+
+        return "Expected " + expectedDesc + " but " + foundDesc + " found.";
+      }
+
+      var posDetails = peg$computePosDetails(pos),
+          found      = pos < input.length ? input.charAt(pos) : null;
+
+      if (expected !== null) {
+        cleanupExpected(expected);
+      }
+
+      return new SyntaxError(
+        message !== null ? message : buildMessage(expected, found),
+        expected,
+        found,
+        pos,
+        posDetails.line,
+        posDetails.column
+      );
+    }
+
+    function peg$parsestart() {
+      var s0;
+
+      s0 = peg$parseprogram();
+
+      return s0;
+    }
+
+    function peg$parsewhitechar() {
+      var s0;
+
+      if (peg$c0.test(input.charAt(peg$currPos))) {
+        s0 = input.charAt(peg$currPos);
+        peg$currPos++;
+      } else {
+        s0 = peg$FAILED;
+        if (peg$silentFails === 0) { peg$fail(peg$c1); }
+      }
+
+      return s0;
+    }
+
+    function peg$parse_() {
+      var s0, s1;
+
+      peg$silentFails++;
+      s0 = [];
+      s1 = peg$parsewhitechar();
+      while (s1 !== peg$FAILED) {
+        s0.push(s1);
+        s1 = peg$parsewhitechar();
+      }
+      peg$silentFails--;
+      if (s0 === peg$FAILED) {
+        s1 = peg$FAILED;
+        if (peg$silentFails === 0) { peg$fail(peg$c2); }
+      }
+
+      return s0;
+    }
+
+    function peg$parsedecimal() {
+      var s0, s1;
+
+      s0 = [];
+      if (peg$c5.test(input.charAt(peg$currPos))) {
+        s1 = input.charAt(peg$currPos);
+        peg$currPos++;
+      } else {
+        s1 = peg$FAILED;
+        if (peg$silentFails === 0) { peg$fail(peg$c6); }
+      }
+      if (s1 !== peg$FAILED) {
+        while (s1 !== peg$FAILED) {
+          s0.push(s1);
+          if (peg$c5.test(input.charAt(peg$currPos))) {
+            s1 = input.charAt(peg$currPos);
+            peg$currPos++;
+          } else {
+            s1 = peg$FAILED;
+            if (peg$silentFails === 0) { peg$fail(peg$c6); }
+          }
+        }
+      } else {
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parsenumber() {
+      var s0, s1, s2, s3, s4, s5, s6;
+
+      s0 = peg$currPos;
+      s1 = peg$parse_();
+      if (s1 !== peg$FAILED) {
+        if (input.charCodeAt(peg$currPos) === 45) {
+          s2 = peg$c8;
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) { peg$fail(peg$c9); }
+        }
+        if (s2 === peg$FAILED) {
+          s2 = peg$c7;
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parsedecimal();
+          if (s3 !== peg$FAILED) {
+            s4 = peg$parse_();
+            if (s4 !== peg$FAILED) {
+              peg$reportedPos = s0;
+              s1 = peg$c10();
+              s0 = s1;
+            } else {
+              peg$currPos = s0;
+              s0 = peg$c4;
+            }
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+      if (s0 === peg$FAILED) {
+        s0 = peg$currPos;
+        s1 = peg$parse_();
+        if (s1 !== peg$FAILED) {
+          if (input.charCodeAt(peg$currPos) === 45) {
+            s2 = peg$c8;
+            peg$currPos++;
+          } else {
+            s2 = peg$FAILED;
+            if (peg$silentFails === 0) { peg$fail(peg$c9); }
+          }
+          if (s2 === peg$FAILED) {
+            s2 = peg$c7;
+          }
+          if (s2 !== peg$FAILED) {
+            s3 = peg$parsedecimal();
+            if (s3 === peg$FAILED) {
+              s3 = peg$c7;
+            }
+            if (s3 !== peg$FAILED) {
+              if (input.charCodeAt(peg$currPos) === 46) {
+                s4 = peg$c11;
+                peg$currPos++;
+              } else {
+                s4 = peg$FAILED;
+                if (peg$silentFails === 0) { peg$fail(peg$c12); }
+              }
+              if (s4 !== peg$FAILED) {
+                s5 = peg$parsedecimal();
+                if (s5 !== peg$FAILED) {
+                  s6 = peg$parse_();
+                  if (s6 !== peg$FAILED) {
+                    peg$reportedPos = s0;
+                    s1 = peg$c10();
+                    s0 = s1;
+                  } else {
+                    peg$currPos = s0;
+                    s0 = peg$c4;
+                  }
+                } else {
+                  peg$currPos = s0;
+                  s0 = peg$c4;
+                }
+              } else {
+                peg$currPos = s0;
+                s0 = peg$c4;
+              }
+            } else {
+              peg$currPos = s0;
+              s0 = peg$c4;
+            }
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      }
+
+      return s0;
+    }
+
+    function peg$parseidentifier() {
+      var s0, s1, s2, s3, s4;
+
+      s0 = peg$currPos;
+      s1 = peg$parse_();
+      if (s1 !== peg$FAILED) {
+        if (peg$c13.test(input.charAt(peg$currPos))) {
+          s2 = input.charAt(peg$currPos);
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) { peg$fail(peg$c14); }
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = [];
+          if (peg$c15.test(input.charAt(peg$currPos))) {
+            s4 = input.charAt(peg$currPos);
+            peg$currPos++;
+          } else {
+            s4 = peg$FAILED;
+            if (peg$silentFails === 0) { peg$fail(peg$c16); }
+          }
+          while (s4 !== peg$FAILED) {
+            s3.push(s4);
+            if (peg$c15.test(input.charAt(peg$currPos))) {
+              s4 = input.charAt(peg$currPos);
+              peg$currPos++;
+            } else {
+              s4 = peg$FAILED;
+              if (peg$silentFails === 0) { peg$fail(peg$c16); }
+            }
+          }
+          if (s3 !== peg$FAILED) {
+            s4 = peg$parse_();
+            if (s4 !== peg$FAILED) {
+              peg$reportedPos = s0;
+              s1 = peg$c17(s2, s3);
+              s0 = s1;
+            } else {
+              peg$currPos = s0;
+              s0 = peg$c4;
+            }
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parsekw_yield() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parse_();
+      if (s1 !== peg$FAILED) {
+        if (input.substr(peg$currPos, 5) === peg$c18) {
+          s2 = peg$c18;
+          peg$currPos += 5;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) { peg$fail(peg$c19); }
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parse_();
+          if (s3 !== peg$FAILED) {
+            s1 = [s1, s2, s3];
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parsekw_if() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parse_();
+      if (s1 !== peg$FAILED) {
+        if (input.substr(peg$currPos, 2) === peg$c20) {
+          s2 = peg$c20;
+          peg$currPos += 2;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) { peg$fail(peg$c21); }
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parse_();
+          if (s3 !== peg$FAILED) {
+            s1 = [s1, s2, s3];
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parsekw_then() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parse_();
+      if (s1 !== peg$FAILED) {
+        if (input.substr(peg$currPos, 4) === peg$c22) {
+          s2 = peg$c22;
+          peg$currPos += 4;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) { peg$fail(peg$c23); }
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parse_();
+          if (s3 !== peg$FAILED) {
+            s1 = [s1, s2, s3];
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parsekw_else() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parse_();
+      if (s1 !== peg$FAILED) {
+        if (input.substr(peg$currPos, 4) === peg$c24) {
+          s2 = peg$c24;
+          peg$currPos += 4;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) { peg$fail(peg$c25); }
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parse_();
+          if (s3 !== peg$FAILED) {
+            s1 = [s1, s2, s3];
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parsecomma() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parse_();
+      if (s1 !== peg$FAILED) {
+        if (input.charCodeAt(peg$currPos) === 44) {
+          s2 = peg$c26;
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) { peg$fail(peg$c27); }
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parse_();
+          if (s3 !== peg$FAILED) {
+            s1 = [s1, s2, s3];
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parseequal() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parse_();
+      if (s1 !== peg$FAILED) {
+        if (input.charCodeAt(peg$currPos) === 61) {
+          s2 = peg$c28;
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) { peg$fail(peg$c29); }
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parse_();
+          if (s3 !== peg$FAILED) {
+            s1 = [s1, s2, s3];
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parseopen_paren() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parse_();
+      if (s1 !== peg$FAILED) {
+        if (input.charCodeAt(peg$currPos) === 40) {
+          s2 = peg$c30;
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) { peg$fail(peg$c31); }
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parse_();
+          if (s3 !== peg$FAILED) {
+            s1 = [s1, s2, s3];
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parseclose_paren() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parse_();
+      if (s1 !== peg$FAILED) {
+        if (input.charCodeAt(peg$currPos) === 41) {
+          s2 = peg$c32;
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) { peg$fail(peg$c33); }
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parse_();
+          if (s3 !== peg$FAILED) {
+            s1 = [s1, s2, s3];
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parseprogram() {
+      var s0, s1;
+
+      s0 = peg$currPos;
+      s1 = peg$parsefunction_body();
+      if (s1 !== peg$FAILED) {
+        peg$reportedPos = s0;
+        s1 = peg$c34(s1);
+      }
+      s0 = s1;
+
+      return s0;
+    }
+
+    function peg$parsefunction_body() {
+      var s0, s1, s2;
+
+      s0 = peg$currPos;
+      s1 = [];
+      s2 = peg$parsefunction_body_part();
+      if (s2 !== peg$FAILED) {
+        while (s2 !== peg$FAILED) {
+          s1.push(s2);
+          s2 = peg$parsefunction_body_part();
+        }
+      } else {
+        s1 = peg$c4;
+      }
+      if (s1 !== peg$FAILED) {
+        peg$reportedPos = s0;
+        s1 = peg$c35(s1);
+      }
+      s0 = s1;
+
+      return s0;
+    }
+
+    function peg$parsefunction_body_part() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parsekw_yield();
+      if (s1 !== peg$FAILED) {
+        s2 = peg$parseexpression();
+        if (s2 !== peg$FAILED) {
+          peg$reportedPos = s0;
+          s1 = peg$c36(s2);
+          s0 = s1;
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+      if (s0 === peg$FAILED) {
+        s0 = peg$currPos;
+        s1 = peg$parseidentifier();
+        if (s1 !== peg$FAILED) {
+          s2 = peg$parseequal();
+          if (s2 !== peg$FAILED) {
+            s3 = peg$parseexpression();
+            if (s3 !== peg$FAILED) {
+              peg$reportedPos = s0;
+              s1 = peg$c37(s1, s3);
+              s0 = s1;
+            } else {
+              peg$currPos = s0;
+              s0 = peg$c4;
+            }
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      }
+
+      return s0;
+    }
+
+    function peg$parseexpression() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parsenonapp_expression();
+      if (s1 !== peg$FAILED) {
+        s2 = [];
+        s3 = peg$parseparenth_arg_list();
+        while (s3 !== peg$FAILED) {
+          s2.push(s3);
+          s3 = peg$parseparenth_arg_list();
+        }
+        if (s2 !== peg$FAILED) {
+          peg$reportedPos = s0;
+          s1 = peg$c38(s1, s2);
+          s0 = s1;
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parsenonapp_expression() {
+      var s0, s1, s2, s3, s4, s5, s6;
+
+      s0 = peg$currPos;
+      s1 = peg$parseopen_paren();
+      if (s1 !== peg$FAILED) {
+        s2 = peg$parseexpression();
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parseclose_paren();
+          if (s3 !== peg$FAILED) {
+            peg$reportedPos = s0;
+            s1 = peg$c39(s2);
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+      if (s0 === peg$FAILED) {
+        s0 = peg$currPos;
+        s1 = peg$parsekw_if();
+        if (s1 !== peg$FAILED) {
+          s2 = peg$parseexpression();
+          if (s2 !== peg$FAILED) {
+            s3 = peg$parsekw_then();
+            if (s3 !== peg$FAILED) {
+              s4 = peg$parseexpression();
+              if (s4 !== peg$FAILED) {
+                s5 = peg$parsekw_else();
+                if (s5 !== peg$FAILED) {
+                  s6 = peg$parseexpression();
+                  if (s6 !== peg$FAILED) {
+                    peg$reportedPos = s0;
+                    s1 = peg$c40(s2, s4, s6);
+                    s0 = s1;
+                  } else {
+                    peg$currPos = s0;
+                    s0 = peg$c4;
+                  }
+                } else {
+                  peg$currPos = s0;
+                  s0 = peg$c4;
+                }
+              } else {
+                peg$currPos = s0;
+                s0 = peg$c4;
+              }
+            } else {
+              peg$currPos = s0;
+              s0 = peg$c4;
+            }
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+        if (s0 === peg$FAILED) {
+          s0 = peg$currPos;
+          s1 = peg$parseidentifier();
+          if (s1 !== peg$FAILED) {
+            peg$reportedPos = s0;
+            s1 = peg$c41(s1);
+          }
+          s0 = s1;
+        }
+      }
+
+      return s0;
+    }
+
+    function peg$parseparenth_arg_list() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parseopen_paren();
+      if (s1 !== peg$FAILED) {
+        s2 = peg$parsearg_list();
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parseclose_paren();
+          if (s3 !== peg$FAILED) {
+            peg$reportedPos = s0;
+            s1 = peg$c42(s2);
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+
+      return s0;
+    }
+
+    function peg$parsearg_list() {
+      var s0, s1, s2, s3;
+
+      s0 = peg$currPos;
+      s1 = peg$parseexpression();
+      if (s1 !== peg$FAILED) {
+        s2 = peg$parsecomma();
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parsearg_list();
+          if (s3 !== peg$FAILED) {
+            peg$reportedPos = s0;
+            s1 = peg$c43(s1, s3);
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$c4;
+          }
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+      if (s0 === peg$FAILED) {
+        s0 = peg$currPos;
+        s1 = peg$parseexpression();
+        if (s1 !== peg$FAILED) {
+          peg$reportedPos = s0;
+          s1 = peg$c44(s1);
+        }
+        s0 = s1;
+      }
+
+      return s0;
+    }
+
+
+
+      function nestAnyApplications(initialExpr, argLists) {
+        var result = initialExpr;
+
+        for (var i = 0; i < argLists.length; i++) {
+          result = {type: 'app', funcExpr: result, argList: argLists[i]};
+        }
+
+        return result;
+      }
+
+
+
+    peg$result = peg$startRuleFunction();
+
+    if (peg$result !== peg$FAILED && peg$currPos === input.length) {
+      return peg$result;
+    } else {
+      if (peg$result !== peg$FAILED && peg$currPos < input.length) {
+        peg$fail({ type: "end", description: "end of input" });
+      }
+
+      throw peg$buildException(null, peg$maxFailExpected, peg$maxFailPos);
+    }
+  }
+
+  return {
+    SyntaxError: SyntaxError,
+    parse:       parse
+  };
+})();
+
+},{}],3:[function(require,module,exports){
+'use strict';
+
+module.exports = {
+  code: 'yield mousePos',
+  main: main,
+  commentary: '<p>This program simply yields the mouse position unchanged, causing the square to be at the same position as the mouse.</p>',
+};
+
+},{}],4:[function(require,module,exports){
+'use strict';
+
+module.exports = {
+  code: 'yield delay1(mousePos)',
+  main: main,
+  commentary: '<p>This program yields the mouse position delayed by 1 second. Note the behavior of the "JS timeout outstanding" value on the left, as you alternately move the mouse and stop moving it for a bit. If there are "buffered" mouse movements still to be played out, there is a timeout set for those. If the mouse has been still for a least one second, no changes will be buffered and so no timeout will be set.</p><p>Also note, if you quickly move the pointer and click to start this same program again, the square jumps to match the mouse position. This is because the delay1 function relays its initial input as its output for the first second.</p>',
+};
+
+},{}],5:[function(require,module,exports){
+'use strict';
+
+module.exports = {
+  code: 'yield if mouseDown then mousePos else delay1(mousePos)',
+  main: main,
+  commentary: '<p>This program switches between yielding the current mouse position and the delayed mouse position, based on whether the mouse button is down. The if/then/else syntax is an expression (like the ternary operator "?:"), not a statement.</p><p>Note that even if the mouse button is held down, the delayed position is computed. This is necessary to avoid "time leaks", i.e. we don\'t know when we\'ll need the value when the mouse button is released, so we must keep it up to date.</p>',
+};
+
+},{}],6:[function(require,module,exports){
+'use strict';
+
+module.exports = {
+  code: 'yield (if mouseDown then id else delay1)(mousePos)',
+  main: main,
+  commentary: '<p>This program illustrates a subtle and important detail, when compared to the previous program. In this program, we apply a function to the mouse position, but the value of that function we apply is itself dynamic. It switches from the value "id" (identity function) to the value "delay1". This is similar to the previous program, except when the mouse is released, the square stays at the current mouse position. This is because when id or delay1 are switched into action, they always start "from scratch". Only one is running at a time. And when delay1 starts, it mirrors its input for the first second. In the previous program, delay1 is always running.</p>',
+};
+
+},{}],7:[function(require,module,exports){
+'use strict';
+
+var primUtils = require('./primUtils');
+var liftN = primUtils.liftN;
+
+function delay1(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
+  if (argSlots.length !== 1) {
+    throw new Error('got wrong number of arguments');
+  }
+
+  var outputSlot = runtime.createSlot();
+
+  var argSlot = argSlots[0];
+  var scheduledChanges = []; // ordered list of {time: ..., value: ...}
+  var pendingOutputChangeTask = null;
+
+  // if needed, add task for updating output, and update our bookeeping
+  var updateTasks = function() {
+    if ((scheduledChanges.length > 0) && !pendingOutputChangeTask) {
+      var nextChange = scheduledChanges[0];
+      // TODO: this should probably call a method of runtime instead of accessing priorityQueue directly
+      // TODO: this call could get back a 'task handle' that we use to remove a pending task on deactivate
+      var changeTask = {
+        time: nextChange.time,
+        topoOrder: baseTopoOrder,
+        closure: changeOutput,
+      };
+      runtime.priorityQueue.insert(changeTask);
+      pendingOutputChangeTask = changeTask;
+    }
+  };
+
+  // closure to be called when time has come to change output value
+  var changeOutput = function(atTime) {
+    if (scheduledChanges.length === 0) {
+      throw new Error('no changes to make');
+    }
+
+    // pull next change off 'front' of queue
+    var nextChange = scheduledChanges.shift();
+
+    // sanity check
+    if (atTime !== nextChange.time) {
+      throw new Error('times do not match');
+    }
+
+    runtime.setSlotValue(outputSlot, nextChange.value, atTime);
+
+    pendingOutputChangeTask = null;
+    updateTasks();
+  };
+
+  var argChangedTask = function(atTime) {
+    var argVal = runtime.getSlotValue(argSlot);
+    scheduledChanges.push({
+      time: atTime + 1.0, // here is the delay amount
+      value: argVal,
+    });
+
+    updateTasks();
+  };
+
+  // make closure to add task when argument value changes
+  var argChangedTrigger = function(atTime) {
+    runtime.priorityQueue.insert({
+      time: atTime,
+      topoOrder: baseTopoOrder,
+      closure: argChangedTask,
+    });
+  };
+
+  // set initial output to be initial input
+  var argVal = runtime.getSlotValue(argSlot);
+  runtime.setSlotValue(outputSlot, argVal, startTime);
+
+  // add trigger on argument
+  runtime.addTrigger(argSlot, argChangedTrigger);
+
+  return {
+    outputSlot: outputSlot,
+    deactivator: function() {
+      runtime.removeTrigger(argSlot, argChangedTrigger);
+      if (pendingOutputChangeTask) {
+        runtime.priorityQueue.remove(pendingOutputChangeTask);
+      }
+    },
+  };
+};
+
+module.exports = {
+  add: liftN(function(a, b) { return a+b; }, 2),
+  sub: liftN(function(a, b) { return a-b; }, 2),
+  id: liftN(function(a) { return a; }, 1),
+
+  delay1: delay1,
+};
+
+},{"./primUtils":12}],8:[function(require,module,exports){
+'use strict';
+
+var PriorityQueue = require('./pq');
+
+var Runtime = function() {
+  this.priorityQueue = new PriorityQueue();
+};
+
+Runtime.prototype.createLexEnv = function(addProps) {
+  return this.deriveLexEnv(null, addProps);
+};
+
+Runtime.prototype.deriveLexEnv = function(parentLexEnv, addProps) {
+  var propsObj = {};
+
+  for (var k in addProps) {
+    if (addProps.hasOwnProperty(k)) {
+      propsObj[k] = {
+        value: addProps[k],
+        writeable: false,
+        enumerable: true,
+      };
+    }
+  }
+
+  return Object.create(parentLexEnv, propsObj);
+};
+
+Runtime.prototype.createSlot = function() {
+  return {
+    currentValue: undefined,
+    triggers: [],
+  };
+};
+
+Runtime.prototype.getSlotValue = function(slot) {
+  return slot.value;
+};
+
+Runtime.prototype.setSlotValue = function(slot, value, atTime) {
+  slot.value = value;
+  for (var i = 0; i < slot.triggers.length; i++) {
+    slot.triggers[i](atTime);
+  }
+};
+
+Runtime.prototype.addTrigger = function(slot, closure) {
+  slot.triggers.push(closure);
+};
+
+Runtime.prototype.removeTrigger = function(slot, closure) {
+  var idx;
+
+  for (var i = 0; i < slot.triggers.length; i++) {
+    if (slot.triggers[i] === closure) {
+      if (idx !== undefined) {
+        throw new Error('found two identical triggers');
+      }
+      idx = i;
+    }
+  }
+
+  if (idx === undefined) {
+    throw new Error('no matching trigger found');
+  }
+
+  // remove matched trigger from slot triggers list
+  slot.triggers.splice(idx, 1);
+};
+
+// run until time of next task is _greater than_ toTime
+Runtime.prototype.runToTime = function(toTime) {
+  while (true) {
+    if (this.priorityQueue.isEmpty()) {
+      return null;
+    }
+    var nextTask = this.priorityQueue.peek();
+    if (nextTask.time > toTime) {
+      return nextTask.time;
+    }
+    this.runNextTask();
+  }
+};
+
+Runtime.prototype.runNextTask = function() {
+  var nextTask = this.priorityQueue.pull(); // gets most "urgent" task
+  nextTask.closure(nextTask.time);
+};
+
+Runtime.prototype.isRunnable = function() {
+  return !this.priorityQueue.isEmpty();
+};
+
+Runtime.prototype.addApplication = function(startTime, func, args, baseTopoOrder, lexEnv) {
+  // make closure for updating activation
+  var deactivator;
+  var runtime = this;
+  var outputSlot = runtime.createSlot();
+
+  function updateActivator(atTime) {
+    // deactivate old activation, if this isn't first time
+    if (deactivator !== undefined) {
+      deactivator();
+    }
+
+    // get activator function from slot
+    var activator = runtime.getSlotValue(func);
+
+    // call new activator
+    var result = activator(runtime, atTime, args, baseTopoOrder, lexEnv);
+
+    if (result === undefined) {
+      throw new Error('activator did not return result');
+    }
+
+    // update current deactivator
+    deactivator = result.deactivator;
+
+    // do first copy of 'internal' output to 'external' output
+    runtime.setSlotValue(outputSlot, runtime.getSlotValue(result.outputSlot), atTime);
+
+    // set trigger to copy output of current activation to output of this application
+    runtime.addTrigger(result.outputSlot, function(atTime) {
+      // copy value from 'internal' output to 'external' output
+      runtime.setSlotValue(outputSlot, runtime.getSlotValue(result.outputSlot), atTime);
+    });
+  }
+
+  // do first update
+  updateActivator(startTime);
+
+  // add trigger to update activator
+  runtime.addTrigger(func, updateActivator);
+
+  return {
+    outputSlot: outputSlot,
+    deactivator: function() {
+      runtime.removeTrigger(func, updateActivator);
+      deactivator();
+    },
+  };
+};
+
+Runtime.prototype.builtins = require('./builtins');
+
+Runtime.prototype.specialFuncs = require('./specialFuncs');
+
+module.exports = Runtime;
+
+},{"./builtins":7,"./pq":11,"./specialFuncs":13}],9:[function(require,module,exports){
+module.exports = require('./lib/heap');
+
+},{"./lib/heap":10}],10:[function(require,module,exports){
+// Generated by CoffeeScript 1.8.0
+(function() {
+  var Heap, defaultCmp, floor, heapify, heappop, heappush, heappushpop, heapreplace, insort, min, nlargest, nsmallest, updateItem, _siftdown, _siftup;
+
+  floor = Math.floor, min = Math.min;
+
+
+  /*
+  Default comparison function to be used
+   */
+
+  defaultCmp = function(x, y) {
+    if (x < y) {
+      return -1;
+    }
+    if (x > y) {
+      return 1;
+    }
+    return 0;
+  };
+
+
+  /*
+  Insert item x in list a, and keep it sorted assuming a is sorted.
+  
+  If x is already in a, insert it to the right of the rightmost x.
+  
+  Optional args lo (default 0) and hi (default a.length) bound the slice
+  of a to be searched.
+   */
+
+  insort = function(a, x, lo, hi, cmp) {
+    var mid;
+    if (lo == null) {
+      lo = 0;
+    }
+    if (cmp == null) {
+      cmp = defaultCmp;
+    }
+    if (lo < 0) {
+      throw new Error('lo must be non-negative');
+    }
+    if (hi == null) {
+      hi = a.length;
+    }
+    while (lo < hi) {
+      mid = floor((lo + hi) / 2);
+      if (cmp(x, a[mid]) < 0) {
+        hi = mid;
+      } else {
+        lo = mid + 1;
+      }
+    }
+    return ([].splice.apply(a, [lo, lo - lo].concat(x)), x);
+  };
+
+
+  /*
+  Push item onto heap, maintaining the heap invariant.
+   */
+
+  heappush = function(array, item, cmp) {
+    if (cmp == null) {
+      cmp = defaultCmp;
+    }
+    array.push(item);
+    return _siftdown(array, 0, array.length - 1, cmp);
+  };
+
+
+  /*
+  Pop the smallest item off the heap, maintaining the heap invariant.
+   */
+
+  heappop = function(array, cmp) {
+    var lastelt, returnitem;
+    if (cmp == null) {
+      cmp = defaultCmp;
+    }
+    lastelt = array.pop();
+    if (array.length) {
+      returnitem = array[0];
+      array[0] = lastelt;
+      _siftup(array, 0, cmp);
+    } else {
+      returnitem = lastelt;
+    }
+    return returnitem;
+  };
+
+
+  /*
+  Pop and return the current smallest value, and add the new item.
+  
+  This is more efficient than heappop() followed by heappush(), and can be
+  more appropriate when using a fixed size heap. Note that the value
+  returned may be larger than item! That constrains reasonable use of
+  this routine unless written as part of a conditional replacement:
+      if item > array[0]
+        item = heapreplace(array, item)
+   */
+
+  heapreplace = function(array, item, cmp) {
+    var returnitem;
+    if (cmp == null) {
+      cmp = defaultCmp;
+    }
+    returnitem = array[0];
+    array[0] = item;
+    _siftup(array, 0, cmp);
+    return returnitem;
+  };
+
+
+  /*
+  Fast version of a heappush followed by a heappop.
+   */
+
+  heappushpop = function(array, item, cmp) {
+    var _ref;
+    if (cmp == null) {
+      cmp = defaultCmp;
+    }
+    if (array.length && cmp(array[0], item) < 0) {
+      _ref = [array[0], item], item = _ref[0], array[0] = _ref[1];
+      _siftup(array, 0, cmp);
+    }
+    return item;
+  };
+
+
+  /*
+  Transform list into a heap, in-place, in O(array.length) time.
+   */
+
+  heapify = function(array, cmp) {
+    var i, _i, _j, _len, _ref, _ref1, _results, _results1;
+    if (cmp == null) {
+      cmp = defaultCmp;
+    }
+    _ref1 = (function() {
+      _results1 = [];
+      for (var _j = 0, _ref = floor(array.length / 2); 0 <= _ref ? _j < _ref : _j > _ref; 0 <= _ref ? _j++ : _j--){ _results1.push(_j); }
+      return _results1;
+    }).apply(this).reverse();
+    _results = [];
+    for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+      i = _ref1[_i];
+      _results.push(_siftup(array, i, cmp));
+    }
+    return _results;
+  };
+
+
+  /*
+  Update the position of the given item in the heap.
+  This function should be called every time the item is being modified.
+   */
+
+  updateItem = function(array, item, cmp) {
+    var pos;
+    if (cmp == null) {
+      cmp = defaultCmp;
+    }
+    pos = array.indexOf(item);
+    if (pos === -1) {
+      return;
+    }
+    _siftdown(array, 0, pos, cmp);
+    return _siftup(array, pos, cmp);
+  };
+
+
+  /*
+  Find the n largest elements in a dataset.
+   */
+
+  nlargest = function(array, n, cmp) {
+    var elem, result, _i, _len, _ref;
+    if (cmp == null) {
+      cmp = defaultCmp;
+    }
+    result = array.slice(0, n);
+    if (!result.length) {
+      return result;
+    }
+    heapify(result, cmp);
+    _ref = array.slice(n);
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      elem = _ref[_i];
+      heappushpop(result, elem, cmp);
+    }
+    return result.sort(cmp).reverse();
+  };
+
+
+  /*
+  Find the n smallest elements in a dataset.
+   */
+
+  nsmallest = function(array, n, cmp) {
+    var elem, i, los, result, _i, _j, _len, _ref, _ref1, _results;
+    if (cmp == null) {
+      cmp = defaultCmp;
+    }
+    if (n * 10 <= array.length) {
+      result = array.slice(0, n).sort(cmp);
+      if (!result.length) {
+        return result;
+      }
+      los = result[result.length - 1];
+      _ref = array.slice(n);
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        elem = _ref[_i];
+        if (cmp(elem, los) < 0) {
+          insort(result, elem, 0, null, cmp);
+          result.pop();
+          los = result[result.length - 1];
+        }
+      }
+      return result;
+    }
+    heapify(array, cmp);
+    _results = [];
+    for (i = _j = 0, _ref1 = min(n, array.length); 0 <= _ref1 ? _j < _ref1 : _j > _ref1; i = 0 <= _ref1 ? ++_j : --_j) {
+      _results.push(heappop(array, cmp));
+    }
+    return _results;
+  };
+
+  _siftdown = function(array, startpos, pos, cmp) {
+    var newitem, parent, parentpos;
+    if (cmp == null) {
+      cmp = defaultCmp;
+    }
+    newitem = array[pos];
+    while (pos > startpos) {
+      parentpos = (pos - 1) >> 1;
+      parent = array[parentpos];
+      if (cmp(newitem, parent) < 0) {
+        array[pos] = parent;
+        pos = parentpos;
+        continue;
+      }
+      break;
+    }
+    return array[pos] = newitem;
+  };
+
+  _siftup = function(array, pos, cmp) {
+    var childpos, endpos, newitem, rightpos, startpos;
+    if (cmp == null) {
+      cmp = defaultCmp;
+    }
+    endpos = array.length;
+    startpos = pos;
+    newitem = array[pos];
+    childpos = 2 * pos + 1;
+    while (childpos < endpos) {
+      rightpos = childpos + 1;
+      if (rightpos < endpos && !(cmp(array[childpos], array[rightpos]) < 0)) {
+        childpos = rightpos;
+      }
+      array[pos] = array[childpos];
+      pos = childpos;
+      childpos = 2 * pos + 1;
+    }
+    array[pos] = newitem;
+    return _siftdown(array, startpos, pos, cmp);
+  };
+
+  Heap = (function() {
+    Heap.push = heappush;
+
+    Heap.pop = heappop;
+
+    Heap.replace = heapreplace;
+
+    Heap.pushpop = heappushpop;
+
+    Heap.heapify = heapify;
+
+    Heap.updateItem = updateItem;
+
+    Heap.nlargest = nlargest;
+
+    Heap.nsmallest = nsmallest;
+
+    function Heap(cmp) {
+      this.cmp = cmp != null ? cmp : defaultCmp;
+      this.nodes = [];
+    }
+
+    Heap.prototype.push = function(x) {
+      return heappush(this.nodes, x, this.cmp);
+    };
+
+    Heap.prototype.pop = function() {
+      return heappop(this.nodes, this.cmp);
+    };
+
+    Heap.prototype.peek = function() {
+      return this.nodes[0];
+    };
+
+    Heap.prototype.contains = function(x) {
+      return this.nodes.indexOf(x) !== -1;
+    };
+
+    Heap.prototype.replace = function(x) {
+      return heapreplace(this.nodes, x, this.cmp);
+    };
+
+    Heap.prototype.pushpop = function(x) {
+      return heappushpop(this.nodes, x, this.cmp);
+    };
+
+    Heap.prototype.heapify = function() {
+      return heapify(this.nodes, this.cmp);
+    };
+
+    Heap.prototype.updateItem = function(x) {
+      return updateItem(this.nodes, x, this.cmp);
+    };
+
+    Heap.prototype.clear = function() {
+      return this.nodes = [];
+    };
+
+    Heap.prototype.empty = function() {
+      return this.nodes.length === 0;
+    };
+
+    Heap.prototype.size = function() {
+      return this.nodes.length;
+    };
+
+    Heap.prototype.clone = function() {
+      var heap;
+      heap = new Heap();
+      heap.nodes = this.nodes.slice(0);
+      return heap;
+    };
+
+    Heap.prototype.toArray = function() {
+      return this.nodes.slice(0);
+    };
+
+    Heap.prototype.insert = Heap.prototype.push;
+
+    Heap.prototype.top = Heap.prototype.peek;
+
+    Heap.prototype.front = Heap.prototype.peek;
+
+    Heap.prototype.has = Heap.prototype.contains;
+
+    Heap.prototype.copy = Heap.prototype.clone;
+
+    return Heap;
+
+  })();
+
+  (function(root, factory) {
+    if (typeof define === 'function' && define.amd) {
+      return define([], factory);
+    } else if (typeof exports === 'object') {
+      return module.exports = factory();
+    } else {
+      return root.Heap = factory();
+    }
+  })(this, function() {
+    return Heap;
+  });
+
+}).call(this);
+
+},{}],11:[function(require,module,exports){
+'use strict';
+
+var Heap = require('heap');
+
+var PriorityQueue = function() {
+  this.heap = new Heap(function(a, b) {
+    if (a.time === b.time) {
+      return (a.topoOrder < b.topoOrder) ? -1 : ((b.topoOrder > a.topoOrder) ? 1 : 0);
+    } else {
+      return a.time - b.time;
+    }
+  });
+};
+
+PriorityQueue.prototype.isEmpty = function() {
+  this.pullRemoved();
+  return this.heap.empty();
+};
+
+PriorityQueue.prototype.insert = function(task) {
+  this.heap.push(task);
+};
+
+PriorityQueue.prototype.peek = function() {
+  this.pullRemoved();
+  return this.heap.peek();
+};
+
+PriorityQueue.prototype.pull = function() {
+  // We allow inserting tasks that are exactly identical to other tasks,
+  //  but we want them to be coalesced (de-duplicated). Rather than do that
+  //  at insert time, it seems easier to do it at pull time.
+
+  this.pullRemoved();
+
+  // pop next task
+  var task = this.heap.pop();
+
+  // As long as heap is not empty, keep popping off any tasks identical to this one.
+  // They must all come in a row, so we can stop when we get a different one.
+  while (true) {
+    this.pullRemoved();
+
+    if (this.heap.empty()) {
+      break;
+    }
+
+    var nextTask = this.heap.peek();
+    if ((nextTask.time === task.time) && (nextTask.topoOrder === task.topoOrder) && (nextTask.closure === task.closure)) {
+      this.heap.pop();
+    } else {
+      break;
+    }
+  }
+
+  return task;
+};
+
+PriorityQueue.prototype.remove = function(task) {
+  // We don't actually remove it, we just set a flag so it will be ignored later.
+  task.removed = true;
+};
+
+// keep pulling until queue is empty or next task is not flagged as removed
+PriorityQueue.prototype.pullRemoved = function() {
+  while (!this.heap.empty()) {
+    var nextTask = this.heap.peek();
+    if (nextTask.removed) {
+      this.heap.pop();
+    } else {
+      break;
+    }
+  }
+}
+
+module.exports = PriorityQueue;
+
+},{"heap":9}],12:[function(require,module,exports){
+'use strict';
+
+function liftN(func, arity) {
+  return function(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
+    if (argSlots.length !== arity) {
+      throw new Error('got wrong number of arguments');
+    }
+
+    var outputSlot = runtime.createSlot();
+
+    var updateTask = function(atTime) {
+      var argVals = [];
+      for (var i = 0; i < arity; i++) {
+        argVals.push(runtime.getSlotValue(argSlots[i]));
+      }
+      var outVal = func.apply(null, argVals);
+      runtime.setSlotValue(outputSlot, outVal, atTime);
+    };
+
+    // make closure that queues task to update value in outputSlot
+    var updateTrigger = function(atTime) {
+      runtime.priorityQueue.insert({
+        time: atTime,
+        topoOrder: baseTopoOrder,
+        closure: updateTask,
+      });
+    }
+
+    // set initial output
+    updateTask(startTime);
+
+    // add triggers
+    for (var i = 0; i < arity; i++) {
+      runtime.addTrigger(argSlots[i], updateTrigger);
+    }
+
+    return {
+      outputSlot: outputSlot,
+      deactivator: function() {
+        for (var i = 0; i < arity; i++) {
+          runtime.removeTrigger(argSlots[i], updateTrigger);
+        }
+      },
+    };
+  };
+};
+
+module.exports = {
+  liftN: liftN,
+};
+
+},{}],13:[function(require,module,exports){
+'use strict';
+
+var primUtils = require('./primUtils');
+var liftN = primUtils.liftN;
+
+module.exports = {
+  ifte: liftN(function(a, b, c) { return a ? b : c; }, 3),
+};
+
+},{"./primUtils":12}],14:[function(require,module,exports){
+'use strict';
+
+var Runtime = require('../runtime');
+var Compiler = require('../compiler');
+
+var demoProgs = {
+  'same position': require('./progs/prog0'),
+  'delayed position': require('./progs/prog1'),
+  'switch on button': require('./progs/prog2'),
+  'dynamic application': require('./progs/prog3'),
+};
+
+var initialDateNow = Date.now();
+var runtime;
+var rootLexEnv;
+var timeoutID;
+var currentResult;
+var inputValues = {
+  mouseX: 0,
+  mouseY: 0,
+  mouseDown: false,
+}
+var internals;
+
+function getMasterTime() {
+  return 0.001*(Date.now() - initialDateNow);
+}
+
+// "run" the runtime as necessary
+function tryRunning() {
+  if (!runtime.isRunnable()) {
+    return;
+  }
+
+  var t = getMasterTime();
+  var nextTime = runtime.runToTime(t);
+
+  if (nextTime && !timeoutID) {
+    timeoutID = window.setTimeout(function() {
+      timeoutID = null;
+      updateInternalsDisplay();
+      tryRunning();
+    }, 1000*(nextTime-t));
+    updateInternalsDisplay();
+  }
+}
+
+document.addEventListener('mousemove', function(e) {
+  var t = getMasterTime();
+  inputValues.mouseX = e.clientX||e.pageX;
+  inputValues.mouseY = e.clientY||e.pageY;
+  // console.log('mouse', t, mouseX, mouseY);
+  runtime.setSlotValue(rootLexEnv.mouseX, inputValues.mouseX, t);
+  runtime.setSlotValue(rootLexEnv.mouseY, inputValues.mouseY, t);
+  runtime.setSlotValue(rootLexEnv.mousePos, {x: inputValues.mouseX, y: inputValues.mouseY}, t);
+
+  tryRunning();
+}, false);
+
+document.addEventListener('mousedown', function(e) {
+  if (e.button === 0) {
+    var t = getMasterTime();
+    inputValues.mouseDown = true;
+    runtime.setSlotValue(rootLexEnv.mouseDown, inputValues.mouseDown, t);
+    tryRunning();
+  }
+}, false);
+
+document.addEventListener('mouseup', function(e) {
+  if (e.button === 0) {
+    var t = getMasterTime();
+    inputValues.mouseDown = false;
+    runtime.setSlotValue(rootLexEnv.mouseDown, inputValues.mouseDown, t);
+    tryRunning();
+  }
+}, false);
+
+function updateInternalsDisplay() {
+  var internalsText = [];
+  internalsText.push('Output changes: ' + internals.outputChanges);
+  internalsText.push('JS timeout outstanding: ' + !!timeoutID);
+
+  document.getElementById('internals-notes').innerHTML = internalsText.join('<br>');
+}
+
+function witnessOutput(atTime) {
+  var value = currentResult.outputSlot.value;
+
+  internals.outputChanges += 1;
+  updateInternalsDisplay();
+
+  // console.log('output is', value, 'at master time', atTime);
+
+  var squareElem = document.getElementById('square');
+  // squareElem.style.left = (value - 17) + 'px';
+  // squareElem.style.top = '100px';
+  squareElem.style.left = (value.x + 1) + 'px';
+  squareElem.style.top = (value.y + 1) + 'px';
+}
+
+function startCompiledProgram(mainFunc) {
+  if (currentResult) {
+    // deactivate current running program
+    currentResult.deactivator();
+
+    // remove trigger on output
+    runtime.removeTrigger(currentResult.outputSlot, witnessOutput);
+
+    // remove any timeout that's set
+    if (timeoutID) {
+      window.clearTimeout(timeoutID);
+      timeoutID = null;
+
+      updateInternalsDisplay();
+    }
+
+    // begin sanity checking
+
+    // make sure its not runnable
+    if (runtime.isRunnable()) {
+      throw new Error('something went wrong');
+    }
+
+    // make sure there are no triggers on global slots
+    for (var k in rootLexEnv) {
+      if (rootLexEnv[k].triggers.length > 0) {
+        throw new Error('something went wrong');
+      }
+    }
+
+    // end sanity checking
+  }
+
+  runtime = new Runtime();
+
+  // add some "global" inputs to root lexical environment
+  rootLexEnv = runtime.createLexEnv({
+    mouseX: runtime.createSlot(),
+    mouseY: runtime.createSlot(),
+    mousePos: runtime.createSlot(),
+    mouseDown: runtime.createSlot(),
+  });
+
+  // inputs
+  runtime.setSlotValue(rootLexEnv.mouseX, inputValues.mouseX, 0);
+  runtime.setSlotValue(rootLexEnv.mouseY, inputValues.mouseY, 0);
+  runtime.setSlotValue(rootLexEnv.mousePos, {x: inputValues.mouseX, y: inputValues.mouseY}, 0);
+  runtime.setSlotValue(rootLexEnv.mouseDown, inputValues.mouseDown, 0);
+
+  // add all builtins to root lexical environment
+  for (var k in runtime.builtins) {
+    rootLexEnv[k] = runtime.createSlot();
+    runtime.setSlotValue(rootLexEnv[k], runtime.builtins[k], 0);
+  }
+
+  // initialize internals
+  internals = {
+    outputChanges: 0,
+  };
+  updateInternalsDisplay();
+
+  // assume main activator definition has been generated by compiler
+  currentResult = mainFunc(runtime, 0, [], '', rootLexEnv);
+
+  witnessOutput(0);
+
+  runtime.addTrigger(currentResult.outputSlot, witnessOutput);
+
+  tryRunning();
+}
+
+function compileAndStartProgram(code) {
+  var mainFuncSrc = Compiler.compile(code);
+  console.log('compiled to JS:');
+  console.log(mainFuncSrc);
+  var mainFunc = eval(mainFuncSrc);
+  startCompiledProgram(mainFunc);
+}
+
+function startDemoProg(prog) {
+  document.getElementById('code-column-editor').value = prog.code;
+  document.getElementById('code-column-commentary').innerHTML = prog.commentary || '';
+  compileAndStartProgram(prog.code);
+}
+
+function createDemoControls() {
+  var demosListElem = document.getElementById('demos-list');
+
+  for (var name in demoProgs) {
+    var li = document.createElement('LI');
+    li.setAttribute('class', 'demo-choice');
+    li.appendChild(document.createTextNode(name));
+    demosListElem.appendChild(li);
+  }
+  demosListElem.firstChild.classList.add('demo-active');
+
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('demo-choice')) {
+      // update UI
+      for (var i = 0; i < demosListElem.childNodes.length; i++) {
+        demosListElem.childNodes[i].classList.remove('demo-active');
+      }
+      e.target.classList.add('demo-active');
+
+      // run program
+      var name = e.target.textContent;
+      var prog = demoProgs[name];
+      startDemoProg(prog);
+    }
+  }, false);
+
+  document.getElementById('compile-button').addEventListener('click', function(e) {
+    compileAndStartProgram(Compiler.compile(document.getElementById('code-column-editor').value));
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  createDemoControls();
+
+  startDemoProg(demoProgs['same position']);
+});
+
+},{"../compiler":1,"../runtime":8,"./progs/prog0":3,"./progs/prog1":4,"./progs/prog2":5,"./progs/prog3":6}]},{},[14]);

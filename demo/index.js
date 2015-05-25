@@ -133,29 +133,25 @@ function startCompiledProgram(mainFunc) {
 
   runtime = new Runtime();
 
+  // add some "global" inputs to root lexical environment
   rootLexEnv = runtime.createLexEnv({
-    add: runtime.createSlot(),
-    delay1: runtime.createSlot(),
-    ifte: runtime.createSlot(),
-    id: runtime.createSlot(),
-
     mouseX: runtime.createSlot(),
     mouseY: runtime.createSlot(),
     mousePos: runtime.createSlot(),
     mouseDown: runtime.createSlot(),
   });
 
-  // builtin functions
-  runtime.setSlotValue(rootLexEnv.add, runtime.builtins.add, 0);
-  runtime.setSlotValue(rootLexEnv.delay1, runtime.builtins.delay1, 0);
-  runtime.setSlotValue(rootLexEnv.ifte, runtime.builtins.ifte, 0);
-  runtime.setSlotValue(rootLexEnv.id, runtime.builtins.id, 0);
-
   // inputs
   runtime.setSlotValue(rootLexEnv.mouseX, inputValues.mouseX, 0);
   runtime.setSlotValue(rootLexEnv.mouseY, inputValues.mouseY, 0);
   runtime.setSlotValue(rootLexEnv.mousePos, {x: inputValues.mouseX, y: inputValues.mouseY}, 0);
   runtime.setSlotValue(rootLexEnv.mouseDown, inputValues.mouseDown, 0);
+
+  // add all builtins to root lexical environment
+  for (var k in runtime.builtins) {
+    rootLexEnv[k] = runtime.createSlot();
+    runtime.setSlotValue(rootLexEnv[k], runtime.builtins[k], 0);
+  }
 
   // initialize internals
   internals = {
