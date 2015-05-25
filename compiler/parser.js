@@ -75,7 +75,7 @@ module.exports = (function() {
         peg$c40 = function(expr) { return expr; },
         peg$c41 = function(ident) { return ident; },
         peg$c42 = function(number) { return {type: 'literal', kind: 'number', value: number}; },
-        peg$c43 = function(condition, consequent, alternative) { return {type: 'app', funcExpr: {type: 'literal', kind: 'specialFunc', value: {func: 'ifte'}}, argList: [condition, consequent, alternative]}; },
+        peg$c43 = function(condition, consequent, alternative) { return {type: 'op', op: 'ifte', args: [condition, consequent, alternative]}; },
         peg$c44 = function(ident) { return {type: 'varIdent', ident: ident}; },
         peg$c45 = function(argList) { return argList; },
         peg$c46 = function(first, rest) { return [first].concat(rest); },
@@ -1122,7 +1122,11 @@ module.exports = (function() {
         var result = initialExpr;
 
         for (var i = 0; i < argLists.length; i++) {
-          result = {type: 'app', funcExpr: result, argList: argLists[i]};
+          result = {
+            type: 'op',
+            op: 'app',
+            args: [result].concat(argLists[i]),
+          };
         }
 
         return result;
@@ -1132,7 +1136,14 @@ module.exports = (function() {
         var result = initialExpr;
 
         for (var i = 0; i < propNames.length; i++) {
-          result = {type: 'app', funcExpr: {type: 'literal', kind: 'specialFunc', value: {func: 'dotAccess', propName: propNames[i]}}, argList: [result]};
+          result = {
+            type: 'op',
+            op: 'prop',
+            args: [
+              result,
+              {type: 'literal', kind: 'string', value: propNames[i]},
+            ],
+          }
         }
 
         return result;

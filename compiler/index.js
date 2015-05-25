@@ -2,7 +2,7 @@
 
 var parser = require('./parser.js');
 
-var NODE_APP = 1;
+var NODE_OP = 1;
 var NODE_LEXENV = 2;
 var NODE_LITERAL = 3;
 
@@ -10,38 +10,37 @@ var REF_UNRESOLVED = 1;
 var REF_RESOLVING = 2;
 var REF_RESOLVED = 3;
 
-// returns a 'ref' object
-function createNodesRefs(exprObj) {
-  if (exprObj.type == 'app') {
-    var funcRef = createNodesRefs(exprObj.funcExpr);
+// takes AST expression node and returns a 'ref' object
+function createNodesRefs(exprNode) {
+  if (exprNode.type == 'op') {
     var argRefs = [];
-    for (var i = 0; i < exprObj.argList.length; i++) {
-      argRefs.push(createNodesRefs(exprObj.argList[i]));
+    for (var i = 0; i < exprNode.args.length; i++) {
+      argRefs.push(createNodesRefs(exprNode.args[i]));
     }
     return {
       state: REF_RESOLVED,
       node: {
-        type: NODE_APP,
-        funcRef: funcRef,
+        type: NODE_OP,
+        op: exprNode.op,
         argRefs: argRefs,
       },
     };
-  } else if (exprObj.type == 'varIdent') {
+  } else if (exprNode.type == 'varIdent') {
     return {
       state: REF_UNRESOLVED,
-      ident: exprObj.ident,
+      ident: exprNode.ident,
     };
-  } else if (exprObj.type == 'literal') {
+  } else if (exprNode.type == 'literal') {
     return {
       state: REF_RESOLVED,
       node: {
         type: NODE_LITERAL,
-        kind: exprObj.kind,
-        value: exprObj.value,
+        kind: exprNode.kind,
+        value: exprNode.value,
       },
     };
   } else {
-    throw new Error('Unexpected object found in AST');
+    throw new Error('Unexpected node type found in AST');
   }
 }
 
@@ -123,8 +122,7 @@ function compileFunction(paramNames, bodyParts) {
     // now that node is ensured to be resolved, recursively make sure everything downstream from it is resolved
     // TODO: it seems like there's duplicate work happening here. we could put flag on nodes to say that anything
     //  downstream of it was already resolved?
-    if (ref.node.type === NODE_APP) {
-      resolveRefRecursive(ref.node.funcRef);
+    if (ref.node.type === NODE_OP) {
       for (var i = 0; i < ref.node.argRefs.length; i++) {
         resolveRefRecursive(ref.node.argRefs[i]);
       }
@@ -158,8 +156,7 @@ function compileFunction(paramNames, bodyParts) {
     node.state = STATE_ENTERED;
 
     // visit any nodes this node depends on
-    if (node.type === NODE_APP) {
-      toposortVisit(node.funcRef.node);
+    if (node.type === NODE_OP) {
       for (var i = 0; i < node.argRefs.length; i++) {
         toposortVisit(node.argRefs[i].node);
       }
@@ -185,8 +182,8 @@ function compileFunction(paramNames, bodyParts) {
   codeFragments.push('  if (argSlots.length !== ' + paramNames.length + ') { throw new Error(\'called with wrong number of arguments\'); }\n');
 
   function getNodeSlotExpr(node) {
-    if (node.type === NODE_APP) {
-      return '$_app' + node.topoOrder + '.outputSlot';
+    if (node.type === NODE_OP) {
+      return '$_op' + node.topoOrder + '.outputSlot';
     } else if (node.type === NODE_LEXENV) {
       return 'lexEnv.' + node.ident;
     } else if (node.type === NODE_LITERAL) {
@@ -201,20 +198,21 @@ function compileFunction(paramNames, bodyParts) {
   var nextTopoIdx = 0;
   for (var i = 0; i < sortedNodes.length; i++) {
     var node = sortedNodes[i];
-    if (node.type === NODE_APP) {
+    if (node.type === NODE_OP) {
       node.topoOrder = nextTopoIdx;
       nextTopoIdx++;
 
-      var funcSlotExpr = getNodeSlotExpr(node.funcRef.node);
       var argSlotExprs = [];
       for (var j = 0; j < node.argRefs.length; j++) {
         argSlotExprs.push(getNodeSlotExpr(node.argRefs[j].node));
       }
 
-      // TODO: MUST zero-pad topoOrder before adding to baseTopoOrder or bad bad things will happen in larger functions
-      codeFragments.push('  var $_app' + node.topoOrder + ' = runtime.addApplication(startTime, ' + funcSlotExpr + ', [' + argSlotExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\');\n');
+      var opFuncName = 'runtime.opFuncs.' + node.op;
 
-      deactivatorCalls.push('$_app' + node.topoOrder + '.deactivator()');
+      // TODO: MUST zero-pad topoOrder before adding to baseTopoOrder or bad bad things will happen in larger functions
+      codeFragments.push('  var $_op' + node.topoOrder + ' = ' + opFuncName + '(runtime, startTime, [' + argSlotExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\');\n');
+
+      deactivatorCalls.push('$_op' + node.topoOrder + '.deactivator()');
     } else if (node.type === NODE_LEXENV) {
       // do nothing
     } else if (node.type === NODE_LITERAL) {
@@ -222,15 +220,9 @@ function compileFunction(paramNames, bodyParts) {
       nextTopoIdx++;
 
       var litValueExpr;
-      if (node.kind === 'specialFunc') {
-        if (node.value.func === 'ifte') {
-          litValueExpr = 'runtime.specialFuncs.ifte';
-        } else if (node.value.func === 'dotAccess') {
-          // TODO: we might want to call a proper repr()-style escape on the propName, but it should only be safe characters anyways
-          litValueExpr = 'runtime.specialFuncs.dotAccess(\'' + node.value.propName + '\')';
-        } else {
-          throw new Error('Unrecognized special function');
-        }
+      if (node.kind === 'string') {
+        // TODO: we might want to call a proper repr()-style escape on the value, but it should only be safe characters anyways
+        litValueExpr = '\'' + node.value + '\'';
       } else if (node.kind === 'number') {
         litValueExpr = node.value.toString();
       } else {

@@ -88,8 +88,6 @@ function delay1(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
 };
 
 module.exports = {
-  add: liftN(function(a, b) { return a+b; }, 2),
-  sub: liftN(function(a, b) { return a-b; }, 2),
   id: liftN(function(a) { return a; }, 1),
   Vec2: liftN(function(x, y) { return {x: x, y: y}; }, 2),
 

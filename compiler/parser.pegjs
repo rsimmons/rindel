@@ -1,10 +1,41 @@
+/*****************************************************************************
+ * PARSER
+ *
+ * The parser returns a Javascript object that is the root node of the
+ * abstract syntax tree (AST). That node will typically contain references
+ * to other AST nodes. Each node has a "type" property that indicates what
+ * type of node it is. The value of "type" indicates what other properties
+ * are also present in the node. The valid types and the additional fields
+ * they come with are:
+ *
+ * - varIdent: variable identifier. field "ident" is string
+ * - literal: fields "kind" (e.g. number, string) and "value"
+ * - binding: a binding of expression to name. fields "ident" string and
+ *   "expr" expression
+ * - op: application of operator. fields are "op" string and "args" array
+ *   of expressions. interpretation of "args" depends on "op" value.
+ *   importantly, function application is considered an operator
+ * - yield: field "expr" is expression
+ *
+ * An "expression" or "expression tree" is an AST (sub)tree rooted with a
+ * node of type varIdent, literal, or op.
+ *
+ * Leaf nodes of expression trees are either "varIdent" or "literal" nodes,
+ * and internal nodes of expression trees are always "op" nodes. In other
+ * words, operators are used to make new expressions out of other expressions.
+ ****************************************************************************/
+
 {
 
   function nestApplications(initialExpr, argLists) {
     var result = initialExpr;
 
     for (var i = 0; i < argLists.length; i++) {
-      result = {type: 'app', funcExpr: result, argList: argLists[i]};
+      result = {
+        type: 'op',
+        op: 'app',
+        args: [result].concat(argLists[i]),
+      };
     }
 
     return result;
@@ -14,7 +45,14 @@
     var result = initialExpr;
 
     for (var i = 0; i < propNames.length; i++) {
-      result = {type: 'app', funcExpr: {type: 'literal', kind: 'specialFunc', value: {func: 'dotAccess', propName: propNames[i]}}, argList: [result]};
+      result = {
+        type: 'op',
+        op: 'prop',
+        args: [
+          result,
+          {type: 'literal', kind: 'string', value: propNames[i]},
+        ],
+      }
     }
 
     return result;
@@ -130,7 +168,7 @@ nonleftrecur_expression
   = open_paren expr:expression close_paren { return expr; }
   // TODO: function definition
   / number:number { return {type: 'literal', kind: 'number', value: number}; }
-  / kw_if condition:expression kw_then consequent:expression kw_else alternative:expression { return {type: 'app', funcExpr: {type: 'literal', kind: 'specialFunc', value: {func: 'ifte'}}, argList: [condition, consequent, alternative]}; }
+  / kw_if condition:expression kw_then consequent:expression kw_else alternative:expression { return {type: 'op', op: 'ifte', args: [condition, consequent, alternative]}; }
   / ident:var_identifier { return {type: 'varIdent', ident: ident}; }
 
 parenth_arg_list
