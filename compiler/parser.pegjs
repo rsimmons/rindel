@@ -61,6 +61,15 @@ var_identifier
 kw_yield
   = _ "yield" _
 
+kw_if
+  = _ "if" _
+
+kw_then
+  = _ "then" _
+
+kw_else
+  = _ "else" _
+
 comma
   = _ "," _
 
@@ -101,6 +110,7 @@ expression
 nonapp_expression
   = open_paren expr:expression close_paren { return expr; }
   // TODO: function definition
+  / kw_if condition:expression kw_then consequent:expression kw_else alternative:expression { return {type: 'app', funcExpr: {type: 'literal', kind: 'specialFunc', value: 'ifte'}, argList: [condition, consequent, alternative]}; }
   / ident:var_identifier { return {type: 'varIdent', ident: ident}; }
 
 parenth_arg_list

@@ -4,6 +4,7 @@ var parser = require('./parser.js');
 
 var NODE_APP = 1;
 var NODE_LEXENV = 2;
+var NODE_LITERAL = 3;
 
 var REF_UNRESOLVED = 1;
 var REF_RESOLVING = 2;
@@ -29,6 +30,15 @@ function createNodesRefs(exprObj) {
     return {
       state: REF_UNRESOLVED,
       ident: exprObj.ident,
+    };
+  } else if (exprObj.type == 'literal') {
+    return {
+      state: REF_RESOLVED,
+      node: {
+        type: NODE_LITERAL,
+        kind: exprObj.kind,
+        value: exprObj.value,
+      },
     };
   } else {
     throw new Error('Unexpected object found in AST');
@@ -120,6 +130,8 @@ function compileFunction(paramNames, bodyParts) {
       }
     } else if (ref.node.type === NODE_LEXENV) {
       // nothing to resolve
+    } else if (ref.node.type === NODE_LITERAL) {
+      // nothing to resolve
     } else {
       throw new Error('Invalid node type');
     }
@@ -153,6 +165,8 @@ function compileFunction(paramNames, bodyParts) {
       }
     } else if (node.type === NODE_LEXENV) {
       // nothing to do since leaf
+    } else if (node.type === NODE_LITERAL) {
+      // nothing to do since leaf
     } else {
       throw new Error('Unexpected node type found during toposort');
     }
@@ -172,9 +186,11 @@ function compileFunction(paramNames, bodyParts) {
 
   function getNodeSlotExpr(node) {
     if (node.type === NODE_APP) {
-      return '$_' + node.topoOrder + '.outputSlot';
+      return '$_app' + node.topoOrder + '.outputSlot';
     } else if (node.type === NODE_LEXENV) {
       return 'lexEnv.' + node.ident;
+    } else if (node.type === NODE_LITERAL) {
+      return '$_lit' + node.topoOrder;
     } else {
       throw new Error('Unexpected node type found in tree');
     }
@@ -196,11 +212,23 @@ function compileFunction(paramNames, bodyParts) {
       }
 
       // TODO: MUST zero-pad topoOrder before adding to baseTopoOrder or bad bad things will happen in larger functions
-      codeFragments.push('  var $_' + node.topoOrder + ' = runtime.addApplication(startTime, ' + funcSlotExpr + ', [' + argSlotExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\');\n');
+      codeFragments.push('  var $_app' + node.topoOrder + ' = runtime.addApplication(startTime, ' + funcSlotExpr + ', [' + argSlotExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\');\n');
 
-      deactivatorCalls.push('$_' + node.topoOrder + '.deactivator()');
+      deactivatorCalls.push('$_app' + node.topoOrder + '.deactivator()');
     } else if (node.type === NODE_LEXENV) {
       // do nothing
+    } else if (node.type === NODE_LITERAL) {
+      node.topoOrder = nextTopoIdx;
+      nextTopoIdx++;
+
+      var litValueExpr;
+      if (node.kind === 'specialFunc') {
+        litValueExpr = 'runtime.specialFuncs.' + node.value;
+      } else {
+        throw new Error('unexpected literal kind');
+      }
+
+      codeFragments.push('  var $_lit' + node.topoOrder + ' = runtime.createSlot(); runtime.setSlotValue($_lit' + node.topoOrder + ', ' + litValueExpr + ', startTime);\n');
     } else {
       throw new Error('Unexpected node type found in tree');
     }
