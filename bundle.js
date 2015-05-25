@@ -1316,19 +1316,6 @@ module.exports = (function() {
 },{}],3:[function(require,module,exports){
 'use strict';
 
-function main(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
-  if (argSlots.length !== 0) {
-    throw new Error('called with wrong number of arguments');
-  }
-
-  return {
-    outputSlot: lexEnv.mousePos,
-    deactivator: function() {
-      // nothing to deactivate
-    },
-  };
-}
-
 module.exports = {
   code: 'yield mousePos',
   main: main,
@@ -1337,22 +1324,6 @@ module.exports = {
 
 },{}],4:[function(require,module,exports){
 'use strict';
-
-function main(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
-  if (argSlots.length !== 0) {
-    throw new Error('called with wrong number of arguments');
-  }
-
-  // add application for final output
-  var $_outResult = runtime.addApplication(startTime, lexEnv.delay1, [lexEnv.mousePos], baseTopoOrder+'1');
-
-  return {
-    outputSlot: $_outResult.outputSlot,
-    deactivator: function() {
-      $_outResult.deactivator();
-    },
-  };
-}
 
 module.exports = {
   code: 'yield delay1(mousePos)',
@@ -1363,23 +1334,6 @@ module.exports = {
 },{}],5:[function(require,module,exports){
 'use strict';
 
-function main(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
-  if (argSlots.length !== 0) {
-    throw new Error('called with wrong number of arguments');
-  }
-
-  var $_0Result = runtime.addApplication(startTime, lexEnv.delay1, [lexEnv.mousePos], baseTopoOrder+'0');
-  var $_outResult = runtime.addApplication(startTime, lexEnv.ifte, [lexEnv.mouseDown, lexEnv.mousePos, $_0Result.outputSlot], baseTopoOrder+'1');
-
-  return {
-    outputSlot: $_outResult.outputSlot,
-    deactivator: function() {
-      $_0Result.deactivator();
-      $_outResult.deactivator();
-    },
-  };
-}
-
 module.exports = {
   code: 'yield if mouseDown then mousePos else delay1(mousePos)',
   main: main,
@@ -1388,23 +1342,6 @@ module.exports = {
 
 },{}],6:[function(require,module,exports){
 'use strict';
-
-function main(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
-  if (argSlots.length !== 0) {
-    throw new Error('called with wrong number of arguments');
-  }
-
-  var $_0Result = runtime.addApplication(startTime, lexEnv.ifte, [lexEnv.mouseDown, lexEnv.id, lexEnv.delay1], baseTopoOrder+'0');
-  var $_outResult = runtime.addApplication(startTime, $_0Result.outputSlot, [lexEnv.mousePos], baseTopoOrder+'1');
-
-  return {
-    outputSlot: $_outResult.outputSlot,
-    deactivator: function() {
-      $_0Result.deactivator();
-      $_outResult.deactivator();
-    },
-  };
-}
 
 module.exports = {
   code: 'yield (if mouseDown then id else delay1)(mousePos)',
@@ -2266,7 +2203,7 @@ function witnessOutput(atTime) {
   squareElem.style.top = (value.y + 1) + 'px';
 }
 
-function startCompiledMain(mainFunc) {
+function startCompiledProgram(mainFunc) {
   if (currentResult) {
     // deactivate current running program
     currentResult.deactivator();
@@ -2341,10 +2278,18 @@ function startCompiledMain(mainFunc) {
   tryRunning();
 }
 
+function compileAndStartProgram(code) {
+  var mainFuncSrc = Compiler.compile(code);
+  console.log('compiled to JS:');
+  console.log(mainFuncSrc);
+  var mainFunc = eval(mainFuncSrc);
+  startCompiledProgram(mainFunc);
+}
+
 function startDemoProg(prog) {
   document.getElementById('code-column-editor').value = prog.code;
   document.getElementById('code-column-commentary').innerHTML = prog.commentary || '';
-  startCompiledMain(prog.main);
+  compileAndStartProgram(prog.code);
 }
 
 function createDemoControls() {
@@ -2374,11 +2319,7 @@ function createDemoControls() {
   }, false);
 
   document.getElementById('compile-button').addEventListener('click', function(e) {
-    var mainFuncSrc = Compiler.compile(document.getElementById('code-column-editor').value);
-    console.log('compiled to JS:');
-    console.log(mainFuncSrc);
-    var mainFunc = eval(mainFuncSrc);
-    startCompiledMain(mainFunc);
+    compileAndStartProgram(Compiler.compile(document.getElementById('code-column-editor').value));
   });
 }
 
