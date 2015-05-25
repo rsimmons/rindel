@@ -183,12 +183,10 @@ function compileFunction(paramNames, bodyParts) {
   codeFragments.push('  if (argSlots.length !== ' + paramNames.length + ') { throw new Error(\'called with wrong number of arguments\'); }\n');
 
   function getNodeSlotExpr(node) {
-    if (node.type === NODE_OP) {
-      return '$_op' + node.topoOrder + '.outputSlot';
+    if ((node.type === NODE_OP) || (node.type === NODE_LITERAL)) {
+      return '$_' + node.topoOrder;
     } else if (node.type === NODE_LEXENV) {
       return 'lexEnv.' + node.ident;
-    } else if (node.type === NODE_LITERAL) {
-      return '$_lit' + node.topoOrder;
     } else {
       throw new Error('Unexpected node type found in tree');
     }
@@ -211,9 +209,9 @@ function compileFunction(paramNames, bodyParts) {
       var opFuncName = 'runtime.opFuncs.' + node.op;
 
       // TODO: MUST zero-pad topoOrder before adding to baseTopoOrder or bad bad things will happen in larger functions
-      codeFragments.push('  var $_op' + node.topoOrder + ' = ' + opFuncName + '(runtime, startTime, [' + argSlotExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\');\n');
+      codeFragments.push('  var $_' + node.topoOrder + 'act = ' + opFuncName + '(runtime, startTime, [' + argSlotExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\'); var $_' + node.topoOrder + ' = $_' + node.topoOrder + 'act.outputSlot\n');
 
-      deactivatorCalls.push('$_op' + node.topoOrder + '.deactivator()');
+      deactivatorCalls.push('$_' + node.topoOrder + 'act.deactivator()');
     } else if (node.type === NODE_LEXENV) {
       // do nothing
     } else if (node.type === NODE_LITERAL) {
@@ -230,7 +228,7 @@ function compileFunction(paramNames, bodyParts) {
         throw new Error('unexpected literal kind');
       }
 
-      codeFragments.push('  var $_lit' + node.topoOrder + ' = runtime.createSlot(); runtime.setSlotValue($_lit' + node.topoOrder + ', ' + litValueExpr + ', startTime);\n');
+      codeFragments.push('  var $_' + node.topoOrder + ' = runtime.createSlot(); runtime.setSlotValue($_' + node.topoOrder + ', ' + litValueExpr + ', startTime);\n');
     } else {
       throw new Error('Unexpected node type found in tree');
     }
