@@ -38,10 +38,12 @@ yield Vec2(mousePos.y, mousePos.x)
 
 =====
 
-basic math
+basic math, bindings
 ---
-yield Vec2(800 - 1.5*mousePos.x, mousePos.y + 50)
+x = 800 - 1.5*mousePos.x
+y = mousePos.y + 50
+yield Vec2(x, y)
 ---
-<p>Here we demonstrate basic math operators and precedence of multiplicatives over additives.</p>
+<p>Here we demonstrate binding expressions to names and basic math operators. Note the precedence of multiplicative operators over additive operators.</p>
 
 
