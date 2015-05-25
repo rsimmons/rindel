@@ -9,6 +9,9 @@ testPrograms = [
   'yield a.b.c',
   'yield (a)(b)',
   'yield (a).b',
+  'yield a.b(c)',
+  'yield a(b).c',
+  'yield a(b).c(d)',
 ];
 
 for (var i = 0; i < testPrograms.length; i++) {
