@@ -79,4 +79,7 @@ module.exports = {
   gt: liftN(function(a, b) { return a>b; }, 2),
   gte: liftN(function(a, b) { return a>=b; }, 2),
   'in': liftN(function(a, b) { return a in b; }, 2),
+
+  eq: liftN(function(a, b) { return a===b; }, 2),
+  neq: liftN(function(a, b) { return a!==b; }, 2),
 };

@@ -133,6 +133,8 @@ op_lte = _ "<=" _
 op_gt = _ ">" !(">" / "=") _
 op_gte = _ ">=" _
 kw_in = _ "in" _
+op_eq = _ "==" _
+op_neq = _ "!=" _
 
 /*****************************************************************************
  * PHRASE RULES
@@ -238,7 +240,14 @@ ineq_in_op
 ineq_in_expr
   = first:shift_expr rest:(ineq_in_op shift_expr)* { return nestBinOps(first, rest); }
 
-expression = ineq_in_expr
+equality_op
+  = op_eq { return 'eq'; }
+  / op_neq { return 'neq'; }
+
+equality_expr
+  = first:ineq_in_expr rest:(equality_op ineq_in_expr)* { return nestBinOps(first, rest); }
+
+expression = equality_expr
 
 /*************************************
  * HELPERS
