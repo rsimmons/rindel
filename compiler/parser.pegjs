@@ -104,10 +104,14 @@ identifier
 var_identifier = identifier
 
 kw_yield = _ "yield" _
-
 kw_if = _ "if" _
 kw_then = _ "then" _
 kw_else = _ "else" _
+kw_in = _ "in" _
+kw_not = _ "not" _
+kw_and = _ "and" _
+kw_xor = _ "xor" _
+kw_or = _ "or" _
 
 comma = _ "," _
 
@@ -132,9 +136,11 @@ op_lt = _ "<" !("<" / "=") _
 op_lte = _ "<=" _
 op_gt = _ ">" !(">" / "=") _
 op_gte = _ ">=" _
-kw_in = _ "in" _
 op_eq = _ "==" _
 op_neq = _ "!=" _
+op_bitand = _ "&" _
+op_bitxor = _ "^" _
+op_bitor = _ "|" _
 
 /*****************************************************************************
  * PHRASE RULES
@@ -247,7 +253,49 @@ equality_op
 equality_expr
   = first:ineq_in_expr rest:(equality_op ineq_in_expr)* { return nestBinOps(first, rest); }
 
-expression = equality_expr
+bitand_op
+  = op_bitand { return 'bitand'; }
+
+bitand_expr
+  = first:equality_expr rest:(bitand_op equality_expr)* { return nestBinOps(first, rest); }
+
+bitxor_op
+  = op_bitxor { return 'bitxor'; }
+
+bitxor_expr
+  = first:bitand_expr rest:(bitxor_op bitand_expr)* { return nestBinOps(first, rest); }
+
+bitor_op
+  = op_bitor { return 'bitor'; }
+
+bitor_expr
+  = first:bitxor_expr rest:(bitor_op bitxor_expr)* { return nestBinOps(first, rest); }
+
+not_op
+  = kw_not { return 'not'; }
+
+not_expr
+  = ops:(not_op)* expr:bitor_expr { return nestPrefixOps(ops, expr); }
+
+and_op
+  = kw_and { return 'and'; }
+
+and_expr
+  = first:not_expr rest:(and_op not_expr)* { return nestBinOps(first, rest); }
+
+xor_op
+  = kw_xor { return 'xor'; }
+
+xor_expr
+  = first:and_expr rest:(xor_op and_expr)* { return nestBinOps(first, rest); }
+
+or_op
+  = kw_or { return 'or'; }
+
+or_expr
+  = first:xor_expr rest:(or_op xor_expr)* { return nestBinOps(first, rest); }
+
+expression = or_expr
 
 /*************************************
  * HELPERS

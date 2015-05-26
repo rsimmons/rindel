@@ -82,4 +82,18 @@ module.exports = {
 
   eq: liftN(function(a, b) { return a===b; }, 2),
   neq: liftN(function(a, b) { return a!==b; }, 2),
+
+  bitand: liftN(function(a, b) { return a&b; }, 2),
+
+  bitxor: liftN(function(a, b) { return a^b; }, 2),
+
+  bitor: liftN(function(a, b) { return a|b; }, 2),
+
+  not: liftN(function(a, b) { return !a; }, 1),
+
+  and: liftN(function(a, b) { return a && b; }, 2),
+
+  xor: liftN(function(a, b) { return (!!a) ^ (!!b); }, 2),
+
+  or: liftN(function(a, b) { return a || b; }, 2),
 };
