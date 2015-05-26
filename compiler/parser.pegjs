@@ -42,6 +42,20 @@
     return result;
   }
 
+  // ops is an array of ops in order of appearance, to be applied to expr
+  function nestPrefixOps(ops, expr) {
+    var result = expr;
+
+    for (var i = ops.length-1; i >= 0; i--) {
+      result = {
+        type: 'op',
+        op: ops[i],
+        args: [result],
+      };
+    }
+
+    return result;
+  }
 }
 
 /*****************************************************************************
@@ -105,17 +119,26 @@ kw_else
 comma
   = _ "," _
 
-dot
-  = _ "." _
-
 equal
   = _ "=" _
 
-op_add
+open_paren
+  = _ "(" _
+
+close_paren
+  = _ ")" _
+
+dot
+  = _ "." _
+
+op_uplus
   = _ "+" _
 
-op_sub
+op_uminus
   = _ "-" _
+
+op_bitnot
+  = _ "~" _
 
 op_mul
   = _ "*" _
@@ -123,11 +146,11 @@ op_mul
 op_div
   = _ "/" _
 
-open_paren
-  = _ "(" _
+op_add
+  = _ "+" _
 
-close_paren
-  = _ ")" _
+op_sub
+  = _ "-" _
 
 /*****************************************************************************
  * PHRASE RULES
@@ -193,12 +216,20 @@ access_call_expr
     return result;
   }
 
+numeric_prefix_op
+  = op_uplus { return 'uplus'; }
+  / op_uminus { return 'uminus'; }
+  / op_bitnot { return 'bitnot'; }
+
+numeric_prefix_expr
+  = ops:(numeric_prefix_op)* expr:access_call_expr { return nestPrefixOps(ops, expr); }
+
 multiplicative_op
   = op_mul { return 'mul'; }
   / op_div { return 'div'; }
 
 multiplicative_expr
-  = first:access_call_expr rest:(multiplicative_op access_call_expr)* { return nestBinOps(first, rest); }
+  = first:numeric_prefix_expr rest:(multiplicative_op numeric_prefix_expr)* { return nestBinOps(first, rest); }
 
 additive_op
   = op_add { return 'add'; }

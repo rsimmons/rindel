@@ -55,14 +55,18 @@ function dynamicApplication(runtime, startTime, argSlots, baseTopoOrder, lexEnv)
 };
 
 module.exports = {
-  app: dynamicApplication,
+  ifte: liftN(function(a, b, c) { return a ? b : c; }, 3),
 
+  app: dynamicApplication,
   prop: liftN(function(a, b) { return a[b]; }, 2),
 
-  ifte: liftN(function(a, b, c) { return a ? b : c; }, 3),
+  uplus: liftN(function(a) { return +a; }, 1),
+  uminus: liftN(function(a) { return -a; }, 1),
+  bitnot: liftN(function(a) { return ~a; }, 1),
+
+  mul: liftN(function(a, b) { return a*b; }, 2),
+  div: liftN(function(a, b) { return a/b; }, 2),
 
   add: liftN(function(a, b) { return a+b; }, 2),
   sub: liftN(function(a, b) { return a-b; }, 2),
-  mul: liftN(function(a, b) { return a*b; }, 2),
-  div: liftN(function(a, b) { return a/b; }, 2),
 };
