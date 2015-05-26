@@ -12,7 +12,7 @@ var REF_RESOLVED = 3;
 
 // takes AST expression node and returns a 'ref' object
 function createNodesRefs(exprNode) {
-  if (exprNode.type == 'op') {
+  if (exprNode.type === 'op') {
     var argRefs = [];
     for (var i = 0; i < exprNode.args.length; i++) {
       argRefs.push(createNodesRefs(exprNode.args[i]));
@@ -25,12 +25,12 @@ function createNodesRefs(exprNode) {
         argRefs: argRefs,
       },
     };
-  } else if (exprNode.type == 'varIdent') {
+  } else if (exprNode.type === 'varIdent') {
     return {
       state: REF_UNRESOLVED,
       ident: exprNode.ident,
     };
-  } else if (exprNode.type == 'literal') {
+  } else if (exprNode.type === 'literal') {
     return {
       state: REF_RESOLVED,
       node: {
