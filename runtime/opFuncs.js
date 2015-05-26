@@ -69,4 +69,8 @@ module.exports = {
 
   add: liftN(function(a, b) { return a+b; }, 2),
   sub: liftN(function(a, b) { return a-b; }, 2),
+
+  lshift: liftN(function(a, b) { return a<<b; }, 2),
+  srshift: liftN(function(a, b) { return a>>b; }, 2),
+  zrshift: liftN(function(a, b) { return a>>>b; }, 2),
 };

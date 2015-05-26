@@ -111,7 +111,7 @@ kw_else = _ "else" _
 
 comma = _ "," _
 
-equal = _ "=" _
+equal = _ "=" !"=" _
 
 open_paren = _ "(" _
 close_paren = _ ")" _
@@ -125,6 +125,9 @@ op_mul = _ "*" _
 op_div = _ "/" _
 op_add = _ "+" _
 op_sub = _ "-" _
+op_lshift = _ "<<" _
+op_srshift = _ ">>" !">" _
+op_zrshift = _ ">>>" _
 
 /*****************************************************************************
  * PHRASE RULES
@@ -212,7 +215,15 @@ additive_op
 additive_expr
   = first:multiplicative_expr rest:(additive_op multiplicative_expr)* { return nestBinOps(first, rest); }
 
-expression = additive_expr
+shift_op
+  = op_lshift { return 'lshift'; }
+  / op_srshift { return 'srshift'; }
+  / op_zrshift { return 'zrshift'; }
+
+shift_expr
+  = first:additive_expr rest:(shift_op additive_expr)* { return nestBinOps(first, rest); }
+
+expression = shift_expr
 
 /*************************************
  * HELPERS
