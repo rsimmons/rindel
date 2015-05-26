@@ -128,6 +128,11 @@ op_sub = _ "-" _
 op_lshift = _ "<<" _
 op_srshift = _ ">>" !">" _
 op_zrshift = _ ">>>" _
+op_lt = _ "<" !("<" / "=") _
+op_lte = _ "<=" _
+op_gt = _ ">" !(">" / "=") _
+op_gte = _ ">=" _
+kw_in = _ "in" _
 
 /*****************************************************************************
  * PHRASE RULES
@@ -223,7 +228,17 @@ shift_op
 shift_expr
   = first:additive_expr rest:(shift_op additive_expr)* { return nestBinOps(first, rest); }
 
-expression = shift_expr
+ineq_in_op
+  = op_lt { return 'lt'; }
+  / op_lte { return 'lte'; }
+  / op_gt { return 'gt'; }
+  / op_gte { return 'gte'; }
+  / kw_in { return 'in'; }
+
+ineq_in_expr
+  = first:shift_expr rest:(ineq_in_op shift_expr)* { return nestBinOps(first, rest); }
+
+expression = ineq_in_expr
 
 /*************************************
  * HELPERS

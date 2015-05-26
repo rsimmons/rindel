@@ -73,4 +73,10 @@ module.exports = {
   lshift: liftN(function(a, b) { return a<<b; }, 2),
   srshift: liftN(function(a, b) { return a>>b; }, 2),
   zrshift: liftN(function(a, b) { return a>>>b; }, 2),
+
+  lt: liftN(function(a, b) { return a<b; }, 2),
+  lte: liftN(function(a, b) { return a<=b; }, 2),
+  gt: liftN(function(a, b) { return a>b; }, 2),
+  gte: liftN(function(a, b) { return a>=b; }, 2),
+  'in': liftN(function(a, b) { return a in b; }, 2),
 };
