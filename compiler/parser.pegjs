@@ -101,56 +101,30 @@ number
 identifier
   = _ first:[_a-z]i rest:[_a-z0-9]i* _ { return first + rest.join(''); }
 
-var_identifier
-  = identifier
+var_identifier = identifier
 
-kw_yield
-  = _ "yield" _
+kw_yield = _ "yield" _
 
-kw_if
-  = _ "if" _
+kw_if = _ "if" _
+kw_then = _ "then" _
+kw_else = _ "else" _
 
-kw_then
-  = _ "then" _
+comma = _ "," _
 
-kw_else
-  = _ "else" _
+equal = _ "=" _
 
-comma
-  = _ "," _
+open_paren = _ "(" _
+close_paren = _ ")" _
 
-equal
-  = _ "=" _
+dot = _ "." _
 
-open_paren
-  = _ "(" _
-
-close_paren
-  = _ ")" _
-
-dot
-  = _ "." _
-
-op_uplus
-  = _ "+" _
-
-op_uminus
-  = _ "-" _
-
-op_bitnot
-  = _ "~" _
-
-op_mul
-  = _ "*" _
-
-op_div
-  = _ "/" _
-
-op_add
-  = _ "+" _
-
-op_sub
-  = _ "-" _
+op_uplus = _ "+" _
+op_uminus = _ "-" _
+op_bitnot = _ "~" _
+op_mul = _ "*" _
+op_div = _ "/" _
+op_add = _ "+" _
+op_sub = _ "-" _
 
 /*****************************************************************************
  * PHRASE RULES
