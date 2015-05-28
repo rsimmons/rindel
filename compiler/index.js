@@ -62,8 +62,8 @@ function compileFunction(paramNames, bodyParts) {
   }
 
   // build explicit graph of two types of nodes:
-  // - nodes corresponding to slots in the lexical environment
-  // - nodes corresponding to local "register" slots we will create
+  // - nodes corresponding to streams in the lexical environment
+  // - nodes corresponding to local "register" streams we will create
 
   // create node tree for yield expression
   var outputNode = createNodesRefs(yieldObj.expr);
@@ -178,10 +178,10 @@ function compileFunction(paramNames, bodyParts) {
   var codeFragments = [];
 
   // this is sort of ghetto but will do for now
-  codeFragments.push('(function(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {\n');
-  codeFragments.push('  if (argSlots.length !== ' + paramNames.length + ') { throw new Error(\'called with wrong number of arguments\'); }\n');
+  codeFragments.push('(function(runtime, startTime, argStreams, baseTopoOrder, lexEnv) {\n');
+  codeFragments.push('  if (argStreams.length !== ' + paramNames.length + ') { throw new Error(\'called with wrong number of arguments\'); }\n');
 
-  function getNodeSlotExpr(node) {
+  function getNodeStreamExpr(node) {
     if ((node.type === NODE_OP) || (node.type === NODE_LITERAL)) {
       return '$_' + node.topoOrder;
     } else if (node.type === NODE_LEXENV) {
@@ -200,15 +200,15 @@ function compileFunction(paramNames, bodyParts) {
       node.topoOrder = nextTopoIdx;
       nextTopoIdx++;
 
-      var argSlotExprs = [];
+      var argStreamExprs = [];
       for (var j = 0; j < node.argRefs.length; j++) {
-        argSlotExprs.push(getNodeSlotExpr(node.argRefs[j].node));
+        argStreamExprs.push(getNodeStreamExpr(node.argRefs[j].node));
       }
 
       var opFuncName = 'runtime.opFuncs.' + node.op;
 
       // TODO: MUST zero-pad topoOrder before adding to baseTopoOrder or bad bad things will happen in larger functions
-      codeFragments.push('  var $_' + node.topoOrder + 'act = ' + opFuncName + '(runtime, startTime, [' + argSlotExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\'); var $_' + node.topoOrder + ' = $_' + node.topoOrder + 'act.outputSlot\n');
+      codeFragments.push('  var $_' + node.topoOrder + 'act = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\'); var $_' + node.topoOrder + ' = $_' + node.topoOrder + 'act.outputStream\n');
 
       deactivatorCalls.push('$_' + node.topoOrder + 'act.deactivator()');
     } else if (node.type === NODE_LEXENV) {
@@ -227,7 +227,7 @@ function compileFunction(paramNames, bodyParts) {
         throw new Error('unexpected literal kind');
       }
 
-      codeFragments.push('  var $_' + node.topoOrder + ' = runtime.createSlot(); runtime.setSlotValue($_' + node.topoOrder + ', ' + litValueExpr + ', startTime);\n');
+      codeFragments.push('  var $_' + node.topoOrder + ' = runtime.createStream(); runtime.setStreamValue($_' + node.topoOrder + ', ' + litValueExpr + ', startTime);\n');
     } else {
       throw new Error('Unexpected node type found in tree');
     }
@@ -237,9 +237,9 @@ function compileFunction(paramNames, bodyParts) {
   deactivatorCalls.reverse();
 
   // generate return statement
-  var outputSlotExpr = getNodeSlotExpr(sortedNodes[sortedNodes.length-1]);
+  var outputStreamExpr = getNodeStreamExpr(sortedNodes[sortedNodes.length-1]);
   codeFragments.push('  return {\n');
-  codeFragments.push('    outputSlot: ' + outputSlotExpr + ',\n');
+  codeFragments.push('    outputStream: ' + outputStreamExpr + ',\n');
   codeFragments.push('    deactivator: function() {\n');
 
   for (var i = 0; i < deactivatorCalls.length; i++) {

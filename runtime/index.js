@@ -26,33 +26,33 @@ Runtime.prototype.deriveLexEnv = function(parentLexEnv, addProps) {
   return Object.create(parentLexEnv, propsObj);
 };
 
-Runtime.prototype.createSlot = function() {
+Runtime.prototype.createStream = function() {
   return {
     currentValue: undefined,
     triggers: [],
   };
 };
 
-Runtime.prototype.getSlotValue = function(slot) {
-  return slot.value;
+Runtime.prototype.getStreamValue = function(stream) {
+  return stream.value;
 };
 
-Runtime.prototype.setSlotValue = function(slot, value, atTime) {
-  slot.value = value;
-  for (var i = 0; i < slot.triggers.length; i++) {
-    slot.triggers[i](atTime);
+Runtime.prototype.setStreamValue = function(stream, value, atTime) {
+  stream.value = value;
+  for (var i = 0; i < stream.triggers.length; i++) {
+    stream.triggers[i](atTime);
   }
 };
 
-Runtime.prototype.addTrigger = function(slot, closure) {
-  slot.triggers.push(closure);
+Runtime.prototype.addTrigger = function(stream, closure) {
+  stream.triggers.push(closure);
 };
 
-Runtime.prototype.removeTrigger = function(slot, closure) {
+Runtime.prototype.removeTrigger = function(stream, closure) {
   var idx;
 
-  for (var i = 0; i < slot.triggers.length; i++) {
-    if (slot.triggers[i] === closure) {
+  for (var i = 0; i < stream.triggers.length; i++) {
+    if (stream.triggers[i] === closure) {
       if (idx !== undefined) {
         throw new Error('found two identical triggers');
       }
@@ -64,8 +64,8 @@ Runtime.prototype.removeTrigger = function(slot, closure) {
     throw new Error('no matching trigger found');
   }
 
-  // remove matched trigger from slot triggers list
-  slot.triggers.splice(idx, 1);
+  // remove matched trigger from stream triggers list
+  stream.triggers.splice(idx, 1);
 };
 
 // run until time of next task is _greater than_ toTime

@@ -3,14 +3,14 @@
 var primUtils = require('./primUtils');
 var liftN = primUtils.liftN;
 
-function delay1(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
-  if (argSlots.length !== 1) {
+function delay1(runtime, startTime, argStreams, baseTopoOrder, lexEnv) {
+  if (argStreams.length !== 1) {
     throw new Error('got wrong number of arguments');
   }
 
-  var outputSlot = runtime.createSlot();
+  var outputStream = runtime.createStream();
 
-  var argSlot = argSlots[0];
+  var argStream = argStreams[0];
   var scheduledChanges = []; // ordered list of {time: ..., value: ...}
   var pendingOutputChangeTask = null;
 
@@ -44,14 +44,14 @@ function delay1(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
       throw new Error('times do not match');
     }
 
-    runtime.setSlotValue(outputSlot, nextChange.value, atTime);
+    runtime.setStreamValue(outputStream, nextChange.value, atTime);
 
     pendingOutputChangeTask = null;
     updateTasks();
   };
 
   var argChangedTask = function(atTime) {
-    var argVal = runtime.getSlotValue(argSlot);
+    var argVal = runtime.getStreamValue(argStream);
     scheduledChanges.push({
       time: atTime + 1.0, // here is the delay amount
       value: argVal,
@@ -70,16 +70,16 @@ function delay1(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
   };
 
   // set initial output to be initial input
-  var argVal = runtime.getSlotValue(argSlot);
-  runtime.setSlotValue(outputSlot, argVal, startTime);
+  var argVal = runtime.getStreamValue(argStream);
+  runtime.setStreamValue(outputStream, argVal, startTime);
 
   // add trigger on argument
-  runtime.addTrigger(argSlot, argChangedTrigger);
+  runtime.addTrigger(argStream, argChangedTrigger);
 
   return {
-    outputSlot: outputSlot,
+    outputStream: outputStream,
     deactivator: function() {
-      runtime.removeTrigger(argSlot, argChangedTrigger);
+      runtime.removeTrigger(argStream, argChangedTrigger);
       if (pendingOutputChangeTask) {
         runtime.priorityQueue.remove(pendingOutputChangeTask);
       }

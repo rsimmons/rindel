@@ -69,9 +69,9 @@ document.addEventListener('mousemove', function(e) {
   inputValues.mouseX = e.clientX||e.pageX;
   inputValues.mouseY = e.clientY||e.pageY;
   // console.log('mouse', t, mouseX, mouseY);
-  runtime.setSlotValue(rootLexEnv.mouseX, inputValues.mouseX, t);
-  runtime.setSlotValue(rootLexEnv.mouseY, inputValues.mouseY, t);
-  runtime.setSlotValue(rootLexEnv.mousePos, {x: inputValues.mouseX, y: inputValues.mouseY}, t);
+  runtime.setStreamValue(rootLexEnv.mouseX, inputValues.mouseX, t);
+  runtime.setStreamValue(rootLexEnv.mouseY, inputValues.mouseY, t);
+  runtime.setStreamValue(rootLexEnv.mousePos, {x: inputValues.mouseX, y: inputValues.mouseY}, t);
 
   tryRunning();
 }, false);
@@ -80,7 +80,7 @@ document.addEventListener('mousedown', function(e) {
   if (e.button === 0) {
     var t = getMasterTime();
     inputValues.mouseDown = true;
-    runtime.setSlotValue(rootLexEnv.mouseDown, inputValues.mouseDown, t);
+    runtime.setStreamValue(rootLexEnv.mouseDown, inputValues.mouseDown, t);
     tryRunning();
   }
 }, false);
@@ -89,7 +89,7 @@ document.addEventListener('mouseup', function(e) {
   if (e.button === 0) {
     var t = getMasterTime();
     inputValues.mouseDown = false;
-    runtime.setSlotValue(rootLexEnv.mouseDown, inputValues.mouseDown, t);
+    runtime.setStreamValue(rootLexEnv.mouseDown, inputValues.mouseDown, t);
     tryRunning();
   }
 }, false);
@@ -103,7 +103,7 @@ function updateInternalsDisplay() {
 }
 
 function witnessOutput(atTime) {
-  var value = currentResult.outputSlot.value;
+  var value = currentResult.outputStream.value;
 
   internals.outputChanges += 1;
   updateInternalsDisplay();
@@ -123,7 +123,7 @@ function startCompiledProgram(mainFunc) {
     currentResult.deactivator();
 
     // remove trigger on output
-    runtime.removeTrigger(currentResult.outputSlot, witnessOutput);
+    runtime.removeTrigger(currentResult.outputStream, witnessOutput);
 
     // remove any timeout that's set
     if (timeoutID) {
@@ -140,7 +140,7 @@ function startCompiledProgram(mainFunc) {
       throw new Error('something went wrong');
     }
 
-    // make sure there are no triggers on global slots
+    // make sure there are no triggers on global streams
     for (var k in rootLexEnv) {
       if (rootLexEnv[k].triggers.length > 0) {
         throw new Error('something went wrong');
@@ -154,22 +154,22 @@ function startCompiledProgram(mainFunc) {
 
   // add some "global" inputs to root lexical environment
   rootLexEnv = runtime.createLexEnv({
-    mouseX: runtime.createSlot(),
-    mouseY: runtime.createSlot(),
-    mousePos: runtime.createSlot(),
-    mouseDown: runtime.createSlot(),
+    mouseX: runtime.createStream(),
+    mouseY: runtime.createStream(),
+    mousePos: runtime.createStream(),
+    mouseDown: runtime.createStream(),
   });
 
   // inputs
-  runtime.setSlotValue(rootLexEnv.mouseX, inputValues.mouseX, 0);
-  runtime.setSlotValue(rootLexEnv.mouseY, inputValues.mouseY, 0);
-  runtime.setSlotValue(rootLexEnv.mousePos, {x: inputValues.mouseX, y: inputValues.mouseY}, 0);
-  runtime.setSlotValue(rootLexEnv.mouseDown, inputValues.mouseDown, 0);
+  runtime.setStreamValue(rootLexEnv.mouseX, inputValues.mouseX, 0);
+  runtime.setStreamValue(rootLexEnv.mouseY, inputValues.mouseY, 0);
+  runtime.setStreamValue(rootLexEnv.mousePos, {x: inputValues.mouseX, y: inputValues.mouseY}, 0);
+  runtime.setStreamValue(rootLexEnv.mouseDown, inputValues.mouseDown, 0);
 
   // add all builtins to root lexical environment
   for (var k in runtime.builtins) {
-    rootLexEnv[k] = runtime.createSlot();
-    runtime.setSlotValue(rootLexEnv[k], runtime.builtins[k], 0);
+    rootLexEnv[k] = runtime.createStream();
+    runtime.setStreamValue(rootLexEnv[k], runtime.builtins[k], 0);
   }
 
   // initialize internals
@@ -183,7 +183,7 @@ function startCompiledProgram(mainFunc) {
 
   witnessOutput(0);
 
-  runtime.addTrigger(currentResult.outputSlot, witnessOutput);
+  runtime.addTrigger(currentResult.outputStream, witnessOutput);
 
   tryRunning();
 }

@@ -3,12 +3,12 @@
 var primUtils = require('./primUtils');
 var liftN = primUtils.liftN;
 
-function dynamicApplication(runtime, startTime, argSlots, baseTopoOrder, lexEnv) {
+function dynamicApplication(runtime, startTime, argStreams, baseTopoOrder, lexEnv) {
   // make closure for updating activation
   var deactivator;
-  var outputSlot = runtime.createSlot();
-  var funcSlot = argSlots[0];
-  var actualArgSlots = argSlots.slice(1);
+  var outputStream = runtime.createStream();
+  var funcStream = argStreams[0];
+  var actualArgStreams = argStreams.slice(1);
 
   function updateActivator(atTime) {
     // deactivate old activation, if this isn't first time
@@ -16,11 +16,11 @@ function dynamicApplication(runtime, startTime, argSlots, baseTopoOrder, lexEnv)
       deactivator();
     }
 
-    // get activator function from slot
-    var activator = runtime.getSlotValue(funcSlot);
+    // get activator function from stream
+    var activator = runtime.getStreamValue(funcStream);
 
     // call new activator
-    var result = activator(runtime, atTime, actualArgSlots, baseTopoOrder, lexEnv);
+    var result = activator(runtime, atTime, actualArgStreams, baseTopoOrder, lexEnv);
 
     if (result === undefined) {
       throw new Error('activator did not return result');
@@ -30,12 +30,12 @@ function dynamicApplication(runtime, startTime, argSlots, baseTopoOrder, lexEnv)
     deactivator = result.deactivator;
 
     // do first copy of 'internal' output to 'external' output
-    runtime.setSlotValue(outputSlot, runtime.getSlotValue(result.outputSlot), atTime);
+    runtime.setStreamValue(outputStream, runtime.getStreamValue(result.outputStream), atTime);
 
     // set trigger to copy output of current activation to output of this application
-    runtime.addTrigger(result.outputSlot, function(atTime) {
+    runtime.addTrigger(result.outputStream, function(atTime) {
       // copy value from 'internal' output to 'external' output
-      runtime.setSlotValue(outputSlot, runtime.getSlotValue(result.outputSlot), atTime);
+      runtime.setStreamValue(outputStream, runtime.getStreamValue(result.outputStream), atTime);
     });
   }
 
@@ -43,12 +43,12 @@ function dynamicApplication(runtime, startTime, argSlots, baseTopoOrder, lexEnv)
   updateActivator(startTime);
 
   // add trigger to update activator
-  runtime.addTrigger(funcSlot, updateActivator);
+  runtime.addTrigger(funcStream, updateActivator);
 
   return {
-    outputSlot: outputSlot,
+    outputStream: outputStream,
     deactivator: function() {
-      runtime.removeTrigger(funcSlot, updateActivator);
+      runtime.removeTrigger(funcStream, updateActivator);
       deactivator();
     },
   };
