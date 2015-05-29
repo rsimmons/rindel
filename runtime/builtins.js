@@ -81,12 +81,12 @@ function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder, lex
   };
 
   // add trigger on argument
-  runtime.addTrigger(argStream, argChangedTrigger);
+  argStream.addTrigger(argChangedTrigger);
 
   return {
     outputStream: outputStream,
     deactivator: function() {
-      runtime.removeTrigger(argStream, argChangedTrigger);
+      argStream.removeTrigger(argChangedTrigger);
       if (pendingOutputChangeTask) {
         runtime.priorityQueue.remove(pendingOutputChangeTask);
       }

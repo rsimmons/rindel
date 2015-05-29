@@ -39,12 +39,12 @@ function dynamicApplication(runtime, startTime, argStreams, outputStream, baseTo
   updateActivator(startTime);
 
   // add trigger to update activator
-  runtime.addTrigger(funcStream, updateActivator);
+  funcStream.addTrigger(updateActivator);
 
   return {
     outputStream: outputStream,
     deactivator: function() {
-      runtime.removeTrigger(funcStream, updateActivator);
+      funcStream.removeTrigger(updateActivator);
       deactivator();
     },
   };

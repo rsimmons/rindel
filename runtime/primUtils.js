@@ -41,14 +41,14 @@ function liftStep(func, arity) {
 
     // add triggers to input streams
     for (var i = 0; i < arity; i++) {
-      runtime.addTrigger(argStreams[i], updateTrigger);
+      argStreams[i].addTrigger(updateTrigger);
     }
 
     return {
       outputStream: outputStream,
       deactivator: function() {
         for (var i = 0; i < arity; i++) {
-          runtime.removeTrigger(argStreams[i], updateTrigger);
+          argStreams[i].removeTrigger(updateTrigger);
         }
       },
     };

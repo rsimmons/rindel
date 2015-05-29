@@ -123,7 +123,7 @@ function startCompiledProgram(mainFunc) {
     currentResult.deactivator();
 
     // remove trigger on output
-    runtime.removeTrigger(currentResult.outputStream, witnessOutput);
+    currentResult.outputStream.removeTrigger(witnessOutput);
 
     // remove any timeout that's set
     if (timeoutID) {
@@ -176,7 +176,7 @@ function startCompiledProgram(mainFunc) {
 
   witnessOutput(0);
 
-  runtime.addTrigger(currentResult.outputStream, witnessOutput);
+  currentResult.outputStream.addTrigger(witnessOutput);
 
   tryRunning();
 }
