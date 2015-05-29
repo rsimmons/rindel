@@ -3490,12 +3490,12 @@ function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder, lex
   };
 
   // add trigger on argument
-  runtime.addTrigger(argStream, argChangedTrigger);
+  argStream.addTrigger(argChangedTrigger);
 
   return {
     outputStream: outputStream,
     deactivator: function() {
-      runtime.removeTrigger(argStream, argChangedTrigger);
+      argStream.removeTrigger(argChangedTrigger);
       if (pendingOutputChangeTask) {
         runtime.priorityQueue.remove(pendingOutputChangeTask);
       }
@@ -3521,13 +3521,21 @@ var Stream = function() {
 var ConstStream = function(value, startTime) {
   this.value = value;
   this.startTime = startTime;
-  this.triggers = []; // TODO: remove these
+  this.triggers = []; // TODO: remove this?
 }
 
 ConstStream.prototype = Object.create(Stream.prototype);
 ConstStream.prototype.constructor = ConstStream;
 
 ConstStream.prototype.tempo = 'const';
+
+ConstStream.prototype.addTrigger = function(closure) {
+  // ignore
+};
+
+ConstStream.prototype.removeTrigger = function(closure) {
+  // ignore
+};
 
 var StepStream = function(initialValue, startTime) {
   this.value = initialValue;
@@ -3546,6 +3554,30 @@ StepStream.prototype.changeValue = function(value, atTime) {
     this.triggers[i](atTime);
   }
 }
+
+StepStream.prototype.addTrigger = function(closure) {
+  this.triggers.push(closure);
+};
+
+StepStream.prototype.removeTrigger = function(closure) {
+  var idx;
+
+  for (var i = 0; i < this.triggers.length; i++) {
+    if (this.triggers[i] === closure) {
+      if (idx !== undefined) {
+        throw new Error('found two identical triggers');
+      }
+      idx = i;
+    }
+  }
+
+  if (idx === undefined) {
+    throw new Error('no matching trigger found');
+  }
+
+  // remove matched trigger from triggers list
+  this.triggers.splice(idx, 1);
+};
 
 var Runtime = function() {
   this.priorityQueue = new PriorityQueue();
@@ -3577,30 +3609,6 @@ Runtime.prototype.createConstStream = function(value, startTime) {
 
 Runtime.prototype.createStepStream = function(initialValue, startTime) {
   return new StepStream(initialValue, startTime);
-};
-
-Runtime.prototype.addTrigger = function(stream, closure) {
-  stream.triggers.push(closure);
-};
-
-Runtime.prototype.removeTrigger = function(stream, closure) {
-  var idx;
-
-  for (var i = 0; i < stream.triggers.length; i++) {
-    if (stream.triggers[i] === closure) {
-      if (idx !== undefined) {
-        throw new Error('found two identical triggers');
-      }
-      idx = i;
-    }
-  }
-
-  if (idx === undefined) {
-    throw new Error('no matching trigger found');
-  }
-
-  // remove matched trigger from stream triggers list
-  stream.triggers.splice(idx, 1);
 };
 
 // run until time of next task is _greater than_ toTime
@@ -4054,12 +4062,12 @@ function dynamicApplication(runtime, startTime, argStreams, outputStream, baseTo
   updateActivator(startTime);
 
   // add trigger to update activator
-  runtime.addTrigger(funcStream, updateActivator);
+  funcStream.addTrigger(updateActivator);
 
   return {
     outputStream: outputStream,
     deactivator: function() {
-      runtime.removeTrigger(funcStream, updateActivator);
+      funcStream.removeTrigger(updateActivator);
       deactivator();
     },
   };
@@ -4231,14 +4239,14 @@ function liftStep(func, arity) {
 
     // add triggers to input streams
     for (var i = 0; i < arity; i++) {
-      runtime.addTrigger(argStreams[i], updateTrigger);
+      argStreams[i].addTrigger(updateTrigger);
     }
 
     return {
       outputStream: outputStream,
       deactivator: function() {
         for (var i = 0; i < arity; i++) {
-          runtime.removeTrigger(argStreams[i], updateTrigger);
+          argStreams[i].removeTrigger(updateTrigger);
         }
       },
     };
@@ -4375,7 +4383,7 @@ function startCompiledProgram(mainFunc) {
     currentResult.deactivator();
 
     // remove trigger on output
-    runtime.removeTrigger(currentResult.outputStream, witnessOutput);
+    currentResult.outputStream.removeTrigger(witnessOutput);
 
     // remove any timeout that's set
     if (timeoutID) {
@@ -4428,7 +4436,7 @@ function startCompiledProgram(mainFunc) {
 
   witnessOutput(0);
 
-  runtime.addTrigger(currentResult.outputStream, witnessOutput);
+  currentResult.outputStream.addTrigger(witnessOutput);
 
   tryRunning();
 }
