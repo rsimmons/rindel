@@ -3421,12 +3421,12 @@ function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder, lex
 
   // create or validate outputStream, set initial value
   // initial output is just initial input
-  var argVal = runtime.getStreamValue(argStream);
+  var argVal = argStream.value;
   if (outputStream) {
     if (outputStream.tempo !== 'step') {
       throw new Error('Incorrect output stream tempo');
     }
-    runtime.setStreamValue(outputStream, argVal, startTime);
+    outputStream.changeValue(argVal, startTime);
   } else {
     outputStream = runtime.createStepStream(argVal, startTime);
   }
@@ -3464,14 +3464,14 @@ function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder, lex
       throw new Error('times do not match');
     }
 
-    runtime.setStreamValue(outputStream, nextChange.value, atTime);
+    outputStream.changeValue(nextChange.value, atTime);
 
     pendingOutputChangeTask = null;
     updateTasks();
   };
 
   var argChangedTask = function(atTime) {
-    var argVal = runtime.getStreamValue(argStream);
+    var argVal = argStream.value;
     scheduledChanges.push({
       time: atTime + 1.0, // here is the delay amount
       value: argVal,
@@ -3515,6 +3515,38 @@ module.exports = {
 
 var PriorityQueue = require('./pq');
 
+var Stream = function() {
+};
+
+var ConstStream = function(value, startTime) {
+  this.value = value;
+  this.startTime = startTime;
+  this.triggers = []; // TODO: remove these
+}
+
+ConstStream.prototype = Object.create(Stream.prototype);
+ConstStream.prototype.constructor = ConstStream;
+
+ConstStream.prototype.tempo = 'const';
+
+var StepStream = function(initialValue, startTime) {
+  this.value = initialValue;
+  this.startTime = startTime;
+  this.triggers = [];
+};
+
+StepStream.prototype = Object.create(Stream.prototype);
+StepStream.prototype.constructor = StepStream;
+
+StepStream.prototype.tempo = 'step';
+
+StepStream.prototype.changeValue = function(value, atTime) {
+  this.value = value;
+  for (var i = 0; i < this.triggers.length; i++) {
+    this.triggers[i](atTime);
+  }
+}
+
 var Runtime = function() {
   this.priorityQueue = new PriorityQueue();
 };
@@ -3540,32 +3572,11 @@ Runtime.prototype.deriveLexEnv = function(parentLexEnv, addProps) {
 };
 
 Runtime.prototype.createConstStream = function(value, startTime) {
-  return {
-    tempo: 'const',
-    value: value,
-    startTime: startTime,
-    triggers: [], // TODO: get rid of these probably
-  };
+  return new ConstStream(value, startTime);
 };
 
 Runtime.prototype.createStepStream = function(initialValue, startTime) {
-  return {
-    tempo: 'step',
-    value: initialValue,
-    startTime: startTime,
-    triggers: [],
-  };
-};
-
-Runtime.prototype.getStreamValue = function(stream) {
-  return stream.value;
-};
-
-Runtime.prototype.setStreamValue = function(stream, value, atTime) {
-  stream.value = value;
-  for (var i = 0; i < stream.triggers.length; i++) {
-    stream.triggers[i](atTime);
-  }
+  return new StepStream(initialValue, startTime);
 };
 
 Runtime.prototype.addTrigger = function(stream, closure) {
@@ -4021,7 +4032,7 @@ function dynamicApplication(runtime, startTime, argStreams, outputStream, baseTo
     }
 
     // get activator function from stream
-    var activator = runtime.getStreamValue(funcStream);
+    var activator = funcStream.value;
 
     // TODO: we could save the last activator, and check if the activator function _actually_ changed...
 
@@ -4189,7 +4200,7 @@ function liftStep(func, arity) {
     function computeOutput() {
       var argVals = [];
       for (var i = 0; i < arity; i++) {
-        argVals.push(runtime.getStreamValue(argStreams[i]));
+        argVals.push(argStreams[i].value);
       }
       return func.apply(null, argVals);
     }
@@ -4199,14 +4210,14 @@ function liftStep(func, arity) {
       if (outputStream.tempo !== 'step') {
         throw new Error('Incorrect output stream tempo');
       }
-      runtime.setStreamValue(outputStream, computeOutput(), startTime);
+      outputStream.changeValue(computeOutput(), startTime);
     } else {
       outputStream = runtime.createStepStream(computeOutput(), startTime);
     }
 
     // task closure that updates output value
     function updateTask(atTime) {
-      runtime.setStreamValue(outputStream, computeOutput(), atTime);
+      outputStream.changeValue(computeOutput(), atTime);
     };
 
     // closure that queues updateTask
@@ -4310,9 +4321,9 @@ document.addEventListener('mousemove', function(e) {
   inputValues.mouseX = e.clientX||e.pageX;
   inputValues.mouseY = e.clientY||e.pageY;
   // console.log('mouse', t, mouseX, mouseY);
-  runtime.setStreamValue(rootLexEnv.mouseX, inputValues.mouseX, t);
-  runtime.setStreamValue(rootLexEnv.mouseY, inputValues.mouseY, t);
-  runtime.setStreamValue(rootLexEnv.mousePos, {x: inputValues.mouseX, y: inputValues.mouseY}, t);
+  rootLexEnv.mouseX.changeValue(inputValues.mouseX, t);
+  rootLexEnv.mouseY.changeValue(inputValues.mouseY, t);
+  rootLexEnv.mousePos.changeValue({x: inputValues.mouseX, y: inputValues.mouseY}, t);
 
   tryRunning();
 }, false);
@@ -4321,7 +4332,7 @@ document.addEventListener('mousedown', function(e) {
   if (e.button === 0) {
     var t = getMasterTime();
     inputValues.mouseDown = true;
-    runtime.setStreamValue(rootLexEnv.mouseDown, inputValues.mouseDown, t);
+    rootLexEnv.mouseDown.changeValue(inputValues.mouseDown, t);
     tryRunning();
   }
 }, false);
@@ -4330,7 +4341,7 @@ document.addEventListener('mouseup', function(e) {
   if (e.button === 0) {
     var t = getMasterTime();
     inputValues.mouseDown = false;
-    runtime.setStreamValue(rootLexEnv.mouseDown, inputValues.mouseDown, t);
+    rootLexEnv.mouseDown.changeValue(inputValues.mouseDown, t);
     tryRunning();
   }
 }, false);
