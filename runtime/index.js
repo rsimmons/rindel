@@ -24,10 +24,44 @@ ConstStream.prototype.removeTrigger = function(closure) {
   // ignore
 };
 
+var TriggerSet = function() {
+  this.funcs = [];
+}
+
+TriggerSet.prototype.add = function(func) {
+  this.funcs.push(func);
+}
+
+TriggerSet.prototype.remove = function(func) {
+  var idx;
+
+  for (var i = 0; i < this.funcs.length; i++) {
+    if (this.funcs[i] === func) {
+      if (idx !== undefined) {
+        throw new Error('found two identical func');
+      }
+      idx = i;
+    }
+  }
+
+  if (idx === undefined) {
+    throw new Error('no matching func found');
+  }
+
+  // remove matched func from func list
+  this.funcs.splice(idx, 1);
+};
+
+TriggerSet.prototype.fire = function(atTime) {
+  for (var i = 0; i < this.funcs.length; i++) {
+    this.funcs[i](atTime);
+  }
+}
+
 var StepStream = function(initialValue, startTime) {
   this.value = initialValue;
   this.startTime = startTime;
-  this.triggers = [];
+  this.triggerSet = new TriggerSet();
 };
 
 StepStream.prototype = Object.create(Stream.prototype);
@@ -37,33 +71,39 @@ StepStream.prototype.tempo = 'step';
 
 StepStream.prototype.changeValue = function(value, atTime) {
   this.value = value;
-  for (var i = 0; i < this.triggers.length; i++) {
-    this.triggers[i](atTime);
-  }
+  this.triggerSet.fire(atTime);
 }
 
 StepStream.prototype.addTrigger = function(closure) {
-  this.triggers.push(closure);
+  this.triggerSet.add(closure);
 };
 
 StepStream.prototype.removeTrigger = function(closure) {
-  var idx;
+  this.triggerSet.remove(closure);
+};
 
-  for (var i = 0; i < this.triggers.length; i++) {
-    if (this.triggers[i] === closure) {
-      if (idx !== undefined) {
-        throw new Error('found two identical triggers');
-      }
-      idx = i;
-    }
-  }
+var EventStream = function(initialValue, startTime) {
+  this.value = initialValue;
+  this.startTime = startTime;
+  this.triggerSet = new TriggerSet();
+}
 
-  if (idx === undefined) {
-    throw new Error('no matching trigger found');
-  }
+EventStream.prototype = Object.create(Stream.prototype);
+EventStream.prototype.constructor = EventStream;
 
-  // remove matched trigger from triggers list
-  this.triggers.splice(idx, 1);
+EventStream.prototype.tempo = 'event';
+
+EventStream.prototype.emitValue = function(value, atTime) {
+  this.value = value;
+  this.triggerSet.fire(atTime);
+}
+
+EventStream.prototype.addTrigger = function(closure) {
+  this.triggerSet.add(closure);
+};
+
+EventStream.prototype.removeTrigger = function(closure) {
+  this.triggerSet.remove(closure);
 };
 
 var Runtime = function() {
