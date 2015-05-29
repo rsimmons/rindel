@@ -69,9 +69,9 @@ document.addEventListener('mousemove', function(e) {
   inputValues.mouseX = e.clientX||e.pageX;
   inputValues.mouseY = e.clientY||e.pageY;
   // console.log('mouse', t, mouseX, mouseY);
-  runtime.setStreamValue(rootLexEnv.mouseX, inputValues.mouseX, t);
-  runtime.setStreamValue(rootLexEnv.mouseY, inputValues.mouseY, t);
-  runtime.setStreamValue(rootLexEnv.mousePos, {x: inputValues.mouseX, y: inputValues.mouseY}, t);
+  rootLexEnv.mouseX.changeValue(inputValues.mouseX, t);
+  rootLexEnv.mouseY.changeValue(inputValues.mouseY, t);
+  rootLexEnv.mousePos.changeValue({x: inputValues.mouseX, y: inputValues.mouseY}, t);
 
   tryRunning();
 }, false);
@@ -80,7 +80,7 @@ document.addEventListener('mousedown', function(e) {
   if (e.button === 0) {
     var t = getMasterTime();
     inputValues.mouseDown = true;
-    runtime.setStreamValue(rootLexEnv.mouseDown, inputValues.mouseDown, t);
+    rootLexEnv.mouseDown.changeValue(inputValues.mouseDown, t);
     tryRunning();
   }
 }, false);
@@ -89,7 +89,7 @@ document.addEventListener('mouseup', function(e) {
   if (e.button === 0) {
     var t = getMasterTime();
     inputValues.mouseDown = false;
-    runtime.setStreamValue(rootLexEnv.mouseDown, inputValues.mouseDown, t);
+    rootLexEnv.mouseDown.changeValue(inputValues.mouseDown, t);
     tryRunning();
   }
 }, false);

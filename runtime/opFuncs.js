@@ -17,7 +17,7 @@ function dynamicApplication(runtime, startTime, argStreams, outputStream, baseTo
     }
 
     // get activator function from stream
-    var activator = runtime.getStreamValue(funcStream);
+    var activator = funcStream.value;
 
     // TODO: we could save the last activator, and check if the activator function _actually_ changed...
 

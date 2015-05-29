@@ -10,7 +10,7 @@ function liftStep(func, arity) {
     function computeOutput() {
       var argVals = [];
       for (var i = 0; i < arity; i++) {
-        argVals.push(runtime.getStreamValue(argStreams[i]));
+        argVals.push(argStreams[i].value);
       }
       return func.apply(null, argVals);
     }
@@ -20,14 +20,14 @@ function liftStep(func, arity) {
       if (outputStream.tempo !== 'step') {
         throw new Error('Incorrect output stream tempo');
       }
-      runtime.setStreamValue(outputStream, computeOutput(), startTime);
+      outputStream.changeValue(computeOutput(), startTime);
     } else {
       outputStream = runtime.createStepStream(computeOutput(), startTime);
     }
 
     // task closure that updates output value
     function updateTask(atTime) {
-      runtime.setStreamValue(outputStream, computeOutput(), atTime);
+      outputStream.changeValue(computeOutput(), atTime);
     };
 
     // closure that queues updateTask

@@ -12,12 +12,12 @@ function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder, lex
 
   // create or validate outputStream, set initial value
   // initial output is just initial input
-  var argVal = runtime.getStreamValue(argStream);
+  var argVal = argStream.value;
   if (outputStream) {
     if (outputStream.tempo !== 'step') {
       throw new Error('Incorrect output stream tempo');
     }
-    runtime.setStreamValue(outputStream, argVal, startTime);
+    outputStream.changeValue(argVal, startTime);
   } else {
     outputStream = runtime.createStepStream(argVal, startTime);
   }
@@ -55,14 +55,14 @@ function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder, lex
       throw new Error('times do not match');
     }
 
-    runtime.setStreamValue(outputStream, nextChange.value, atTime);
+    outputStream.changeValue(nextChange.value, atTime);
 
     pendingOutputChangeTask = null;
     updateTasks();
   };
 
   var argChangedTask = function(atTime) {
-    var argVal = runtime.getStreamValue(argStream);
+    var argVal = argStream.value;
     scheduledChanges.push({
       time: atTime + 1.0, // here is the delay amount
       value: argVal,

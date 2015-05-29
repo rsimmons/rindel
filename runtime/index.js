@@ -2,6 +2,38 @@
 
 var PriorityQueue = require('./pq');
 
+var Stream = function() {
+};
+
+var ConstStream = function(value, startTime) {
+  this.value = value;
+  this.startTime = startTime;
+  this.triggers = []; // TODO: remove these
+}
+
+ConstStream.prototype = Object.create(Stream.prototype);
+ConstStream.prototype.constructor = ConstStream;
+
+ConstStream.prototype.tempo = 'const';
+
+var StepStream = function(initialValue, startTime) {
+  this.value = initialValue;
+  this.startTime = startTime;
+  this.triggers = [];
+};
+
+StepStream.prototype = Object.create(Stream.prototype);
+StepStream.prototype.constructor = StepStream;
+
+StepStream.prototype.tempo = 'step';
+
+StepStream.prototype.changeValue = function(value, atTime) {
+  this.value = value;
+  for (var i = 0; i < this.triggers.length; i++) {
+    this.triggers[i](atTime);
+  }
+}
+
 var Runtime = function() {
   this.priorityQueue = new PriorityQueue();
 };
@@ -27,32 +59,11 @@ Runtime.prototype.deriveLexEnv = function(parentLexEnv, addProps) {
 };
 
 Runtime.prototype.createConstStream = function(value, startTime) {
-  return {
-    tempo: 'const',
-    value: value,
-    startTime: startTime,
-    triggers: [], // TODO: get rid of these probably
-  };
+  return new ConstStream(value, startTime);
 };
 
 Runtime.prototype.createStepStream = function(initialValue, startTime) {
-  return {
-    tempo: 'step',
-    value: initialValue,
-    startTime: startTime,
-    triggers: [],
-  };
-};
-
-Runtime.prototype.getStreamValue = function(stream) {
-  return stream.value;
-};
-
-Runtime.prototype.setStreamValue = function(stream, value, atTime) {
-  stream.value = value;
-  for (var i = 0; i < stream.triggers.length; i++) {
-    stream.triggers[i](atTime);
-  }
+  return new StepStream(initialValue, startTime);
 };
 
 Runtime.prototype.addTrigger = function(stream, closure) {
