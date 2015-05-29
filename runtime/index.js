@@ -26,9 +26,20 @@ Runtime.prototype.deriveLexEnv = function(parentLexEnv, addProps) {
   return Object.create(parentLexEnv, propsObj);
 };
 
-Runtime.prototype.createStream = function() {
+Runtime.prototype.createConstStream = function(value, startTime) {
   return {
-    currentValue: undefined,
+    tempo: 'const',
+    value: value,
+    startTime: startTime,
+    triggers: [], // TODO: get rid of these probably
+  };
+};
+
+Runtime.prototype.createStepStream = function(initialValue, startTime) {
+  return {
+    tempo: 'step',
+    value: initialValue,
+    startTime: startTime,
     triggers: [],
   };
 };

@@ -178,7 +178,7 @@ function compileFunction(paramNames, bodyParts) {
   var codeFragments = [];
 
   // this is sort of ghetto but will do for now
-  codeFragments.push('(function(runtime, startTime, argStreams, baseTopoOrder, lexEnv) {\n');
+  codeFragments.push('(function(runtime, startTime, argStreams, outputStream, baseTopoOrder, lexEnv) {\n');
   codeFragments.push('  if (argStreams.length !== ' + paramNames.length + ') { throw new Error(\'called with wrong number of arguments\'); }\n');
 
   function getNodeStreamExpr(node) {
@@ -208,7 +208,7 @@ function compileFunction(paramNames, bodyParts) {
       var opFuncName = 'runtime.opFuncs.' + node.op;
 
       // TODO: MUST zero-pad topoOrder before adding to baseTopoOrder or bad bad things will happen in larger functions
-      codeFragments.push('  var $_' + node.topoOrder + 'act = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\'); var $_' + node.topoOrder + ' = $_' + node.topoOrder + 'act.outputStream\n');
+      codeFragments.push('  var $_' + node.topoOrder + 'act = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], null, baseTopoOrder+\'' + node.topoOrder + '\'); var $_' + node.topoOrder + ' = $_' + node.topoOrder + 'act.outputStream\n');
 
       deactivatorCalls.push('$_' + node.topoOrder + 'act.deactivator()');
     } else if (node.type === NODE_LEXENV) {
@@ -227,7 +227,7 @@ function compileFunction(paramNames, bodyParts) {
         throw new Error('unexpected literal kind');
       }
 
-      codeFragments.push('  var $_' + node.topoOrder + ' = runtime.createStream(); runtime.setStreamValue($_' + node.topoOrder + ', ' + litValueExpr + ', startTime);\n');
+      codeFragments.push('  var $_' + node.topoOrder + ' = runtime.createConstStream(' + litValueExpr + ', startTime);\n');
     } else {
       throw new Error('Unexpected node type found in tree');
     }
@@ -236,12 +236,22 @@ function compileFunction(paramNames, bodyParts) {
   //  but it just seems appropriate.
   deactivatorCalls.reverse();
 
+  // we might need to copy "inner" output to real output stream, if outputStream arg was provided
+  var innerOutputExpr = getNodeStreamExpr(sortedNodes[sortedNodes.length-1]);
+  codeFragments.push('  var deactivateCopyTrigger;\n');
+  codeFragments.push('  if (outputStream) {\n');
+  codeFragments.push('    deactivateCopyTrigger = runtime.addCopyTrigger(' + innerOutputExpr + ', outputStream);\n');
+  codeFragments.push('  } else {\n');
+  codeFragments.push('    outputStream = ' + innerOutputExpr + ';\n');
+  codeFragments.push('  }\n');
+
   // generate return statement
   var outputStreamExpr = getNodeStreamExpr(sortedNodes[sortedNodes.length-1]);
   codeFragments.push('  return {\n');
-  codeFragments.push('    outputStream: ' + outputStreamExpr + ',\n');
+  codeFragments.push('    outputStream: outputStream,\n');
   codeFragments.push('    deactivator: function() {\n');
 
+  codeFragments.push('      if (deactivateCopyTrigger) { deactivateCopyTrigger(); }\n');
   for (var i = 0; i < deactivatorCalls.length; i++) {
     codeFragments.push('      ' + deactivatorCalls[i] + ';\n');
   }

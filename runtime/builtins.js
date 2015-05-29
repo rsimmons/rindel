@@ -1,16 +1,27 @@
 'use strict';
 
 var primUtils = require('./primUtils');
-var liftN = primUtils.liftN;
+var liftStep = primUtils.liftStep;
 
-function delay1(runtime, startTime, argStreams, baseTopoOrder, lexEnv) {
+function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder, lexEnv) {
   if (argStreams.length !== 1) {
     throw new Error('got wrong number of arguments');
   }
 
-  var outputStream = runtime.createStream();
-
   var argStream = argStreams[0];
+
+  // create or validate outputStream, set initial value
+  // initial output is just initial input
+  var argVal = runtime.getStreamValue(argStream);
+  if (outputStream) {
+    if (outputStream.tempo !== 'step') {
+      throw new Error('Incorrect output stream tempo');
+    }
+    runtime.setStreamValue(outputStream, argVal, startTime);
+  } else {
+    outputStream = runtime.createStepStream(argVal, startTime);
+  }
+
   var scheduledChanges = []; // ordered list of {time: ..., value: ...}
   var pendingOutputChangeTask = null;
 
@@ -69,10 +80,6 @@ function delay1(runtime, startTime, argStreams, baseTopoOrder, lexEnv) {
     });
   };
 
-  // set initial output to be initial input
-  var argVal = runtime.getStreamValue(argStream);
-  runtime.setStreamValue(outputStream, argVal, startTime);
-
   // add trigger on argument
   runtime.addTrigger(argStream, argChangedTrigger);
 
@@ -88,8 +95,8 @@ function delay1(runtime, startTime, argStreams, baseTopoOrder, lexEnv) {
 };
 
 module.exports = {
-  id: liftN(function(a) { return a; }, 1),
-  Vec2: liftN(function(x, y) { return {x: x, y: y}; }, 2),
+  id: liftStep(function(a) { return a; }, 1),
+  Vec2: liftStep(function(x, y) { return {x: x, y: y}; }, 2),
 
   delay1: delay1,
 };

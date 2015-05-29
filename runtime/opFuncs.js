@@ -1,12 +1,12 @@
 'use strict';
 
 var primUtils = require('./primUtils');
-var liftN = primUtils.liftN;
+var liftStep = primUtils.liftStep;
 
-function dynamicApplication(runtime, startTime, argStreams, baseTopoOrder, lexEnv) {
+function dynamicApplication(runtime, startTime, argStreams, outputStream, baseTopoOrder, lexEnv) {
   // make closure for updating activation
   var deactivator;
-  var outputStream = runtime.createStream();
+  var outputStream;
   var funcStream = argStreams[0];
   var actualArgStreams = argStreams.slice(1);
 
@@ -19,24 +19,20 @@ function dynamicApplication(runtime, startTime, argStreams, baseTopoOrder, lexEn
     // get activator function from stream
     var activator = runtime.getStreamValue(funcStream);
 
-    // call new activator
-    var result = activator(runtime, atTime, actualArgStreams, baseTopoOrder, lexEnv);
+    // TODO: we could save the last activator, and check if the activator function _actually_ changed...
 
-    if (result === undefined) {
-      throw new Error('activator did not return result');
+    // call new activator
+    var result;
+    if (outputStream) {
+      result = activator(runtime, atTime, actualArgStreams, outputStream, baseTopoOrder, lexEnv);
+    } else {
+      result = activator(runtime, atTime, actualArgStreams, null, baseTopoOrder, lexEnv);
+      // note that we save the outputStream from the first activator, even after it's deactivated. this seems OK
+      outputStream = result.outputStream;
     }
 
     // update current deactivator
     deactivator = result.deactivator;
-
-    // do first copy of 'internal' output to 'external' output
-    runtime.setStreamValue(outputStream, runtime.getStreamValue(result.outputStream), atTime);
-
-    // set trigger to copy output of current activation to output of this application
-    runtime.addTrigger(result.outputStream, function(atTime) {
-      // copy value from 'internal' output to 'external' output
-      runtime.setStreamValue(outputStream, runtime.getStreamValue(result.outputStream), atTime);
-    });
   }
 
   // do first update
@@ -55,45 +51,45 @@ function dynamicApplication(runtime, startTime, argStreams, baseTopoOrder, lexEn
 };
 
 module.exports = {
-  ifte: liftN(function(a, b, c) { return a ? b : c; }, 3),
+  ifte: liftStep(function(a, b, c) { return a ? b : c; }, 3),
 
   app: dynamicApplication,
-  prop: liftN(function(a, b) { return a[b]; }, 2),
+  prop: liftStep(function(a, b) { return a[b]; }, 2),
 
-  uplus: liftN(function(a) { return +a; }, 1),
-  uminus: liftN(function(a) { return -a; }, 1),
-  bitnot: liftN(function(a) { return ~a; }, 1),
+  uplus: liftStep(function(a) { return +a; }, 1),
+  uminus: liftStep(function(a) { return -a; }, 1),
+  bitnot: liftStep(function(a) { return ~a; }, 1),
 
-  mul: liftN(function(a, b) { return a*b; }, 2),
-  div: liftN(function(a, b) { return a/b; }, 2),
+  mul: liftStep(function(a, b) { return a*b; }, 2),
+  div: liftStep(function(a, b) { return a/b; }, 2),
 
-  add: liftN(function(a, b) { return a+b; }, 2),
-  sub: liftN(function(a, b) { return a-b; }, 2),
+  add: liftStep(function(a, b) { return a+b; }, 2),
+  sub: liftStep(function(a, b) { return a-b; }, 2),
 
-  lshift: liftN(function(a, b) { return a<<b; }, 2),
-  srshift: liftN(function(a, b) { return a>>b; }, 2),
-  zrshift: liftN(function(a, b) { return a>>>b; }, 2),
+  lshift: liftStep(function(a, b) { return a<<b; }, 2),
+  srshift: liftStep(function(a, b) { return a>>b; }, 2),
+  zrshift: liftStep(function(a, b) { return a>>>b; }, 2),
 
-  lt: liftN(function(a, b) { return a<b; }, 2),
-  lte: liftN(function(a, b) { return a<=b; }, 2),
-  gt: liftN(function(a, b) { return a>b; }, 2),
-  gte: liftN(function(a, b) { return a>=b; }, 2),
-  'in': liftN(function(a, b) { return a in b; }, 2),
+  lt: liftStep(function(a, b) { return a<b; }, 2),
+  lte: liftStep(function(a, b) { return a<=b; }, 2),
+  gt: liftStep(function(a, b) { return a>b; }, 2),
+  gte: liftStep(function(a, b) { return a>=b; }, 2),
+  'in': liftStep(function(a, b) { return a in b; }, 2),
 
-  eq: liftN(function(a, b) { return a===b; }, 2),
-  neq: liftN(function(a, b) { return a!==b; }, 2),
+  eq: liftStep(function(a, b) { return a===b; }, 2),
+  neq: liftStep(function(a, b) { return a!==b; }, 2),
 
-  bitand: liftN(function(a, b) { return a&b; }, 2),
+  bitand: liftStep(function(a, b) { return a&b; }, 2),
 
-  bitxor: liftN(function(a, b) { return a^b; }, 2),
+  bitxor: liftStep(function(a, b) { return a^b; }, 2),
 
-  bitor: liftN(function(a, b) { return a|b; }, 2),
+  bitor: liftStep(function(a, b) { return a|b; }, 2),
 
-  not: liftN(function(a, b) { return !a; }, 1),
+  not: liftStep(function(a, b) { return !a; }, 1),
 
-  and: liftN(function(a, b) { return a && b; }, 2),
+  and: liftStep(function(a, b) { return a && b; }, 2),
 
-  xor: liftN(function(a, b) { return (!!a) ^ (!!b); }, 2),
+  xor: liftStep(function(a, b) { return (!!a) ^ (!!b); }, 2),
 
-  or: liftN(function(a, b) { return a || b; }, 2),
+  or: liftStep(function(a, b) { return a || b; }, 2),
 };

@@ -179,7 +179,7 @@ function compileFunction(paramNames, bodyParts) {
   var codeFragments = [];
 
   // this is sort of ghetto but will do for now
-  codeFragments.push('(function(runtime, startTime, argStreams, baseTopoOrder, lexEnv) {\n');
+  codeFragments.push('(function(runtime, startTime, argStreams, outputStream, baseTopoOrder, lexEnv) {\n');
   codeFragments.push('  if (argStreams.length !== ' + paramNames.length + ') { throw new Error(\'called with wrong number of arguments\'); }\n');
 
   function getNodeStreamExpr(node) {
@@ -209,7 +209,7 @@ function compileFunction(paramNames, bodyParts) {
       var opFuncName = 'runtime.opFuncs.' + node.op;
 
       // TODO: MUST zero-pad topoOrder before adding to baseTopoOrder or bad bad things will happen in larger functions
-      codeFragments.push('  var $_' + node.topoOrder + 'act = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\'); var $_' + node.topoOrder + ' = $_' + node.topoOrder + 'act.outputStream\n');
+      codeFragments.push('  var $_' + node.topoOrder + 'act = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], null, baseTopoOrder+\'' + node.topoOrder + '\'); var $_' + node.topoOrder + ' = $_' + node.topoOrder + 'act.outputStream\n');
 
       deactivatorCalls.push('$_' + node.topoOrder + 'act.deactivator()');
     } else if (node.type === NODE_LEXENV) {
@@ -228,7 +228,7 @@ function compileFunction(paramNames, bodyParts) {
         throw new Error('unexpected literal kind');
       }
 
-      codeFragments.push('  var $_' + node.topoOrder + ' = runtime.createStream(); runtime.setStreamValue($_' + node.topoOrder + ', ' + litValueExpr + ', startTime);\n');
+      codeFragments.push('  var $_' + node.topoOrder + ' = runtime.createConstStream(' + litValueExpr + ', startTime);\n');
     } else {
       throw new Error('Unexpected node type found in tree');
     }
@@ -237,12 +237,22 @@ function compileFunction(paramNames, bodyParts) {
   //  but it just seems appropriate.
   deactivatorCalls.reverse();
 
+  // we might need to copy "inner" output to real output stream, if outputStream arg was provided
+  var innerOutputExpr = getNodeStreamExpr(sortedNodes[sortedNodes.length-1]);
+  codeFragments.push('  var deactivateCopyTrigger;\n');
+  codeFragments.push('  if (outputStream) {\n');
+  codeFragments.push('    deactivateCopyTrigger = runtime.addCopyTrigger(' + innerOutputExpr + ', outputStream);\n');
+  codeFragments.push('  } else {\n');
+  codeFragments.push('    outputStream = ' + innerOutputExpr + ';\n');
+  codeFragments.push('  }\n');
+
   // generate return statement
   var outputStreamExpr = getNodeStreamExpr(sortedNodes[sortedNodes.length-1]);
   codeFragments.push('  return {\n');
-  codeFragments.push('    outputStream: ' + outputStreamExpr + ',\n');
+  codeFragments.push('    outputStream: outputStream,\n');
   codeFragments.push('    deactivator: function() {\n');
 
+  codeFragments.push('      if (deactivateCopyTrigger) { deactivateCopyTrigger(); }\n');
   for (var i = 0; i < deactivatorCalls.length; i++) {
     codeFragments.push('      ' + deactivatorCalls[i] + ';\n');
   }
@@ -3400,16 +3410,27 @@ module.exports = (function() {
 'use strict';
 
 var primUtils = require('./primUtils');
-var liftN = primUtils.liftN;
+var liftStep = primUtils.liftStep;
 
-function delay1(runtime, startTime, argStreams, baseTopoOrder, lexEnv) {
+function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder, lexEnv) {
   if (argStreams.length !== 1) {
     throw new Error('got wrong number of arguments');
   }
 
-  var outputStream = runtime.createStream();
-
   var argStream = argStreams[0];
+
+  // create or validate outputStream, set initial value
+  // initial output is just initial input
+  var argVal = runtime.getStreamValue(argStream);
+  if (outputStream) {
+    if (outputStream.tempo !== 'step') {
+      throw new Error('Incorrect output stream tempo');
+    }
+    runtime.setStreamValue(outputStream, argVal, startTime);
+  } else {
+    outputStream = runtime.createStepStream(argVal, startTime);
+  }
+
   var scheduledChanges = []; // ordered list of {time: ..., value: ...}
   var pendingOutputChangeTask = null;
 
@@ -3468,10 +3489,6 @@ function delay1(runtime, startTime, argStreams, baseTopoOrder, lexEnv) {
     });
   };
 
-  // set initial output to be initial input
-  var argVal = runtime.getStreamValue(argStream);
-  runtime.setStreamValue(outputStream, argVal, startTime);
-
   // add trigger on argument
   runtime.addTrigger(argStream, argChangedTrigger);
 
@@ -3487,8 +3504,8 @@ function delay1(runtime, startTime, argStreams, baseTopoOrder, lexEnv) {
 };
 
 module.exports = {
-  id: liftN(function(a) { return a; }, 1),
-  Vec2: liftN(function(x, y) { return {x: x, y: y}; }, 2),
+  id: liftStep(function(a) { return a; }, 1),
+  Vec2: liftStep(function(x, y) { return {x: x, y: y}; }, 2),
 
   delay1: delay1,
 };
@@ -3522,9 +3539,20 @@ Runtime.prototype.deriveLexEnv = function(parentLexEnv, addProps) {
   return Object.create(parentLexEnv, propsObj);
 };
 
-Runtime.prototype.createStream = function() {
+Runtime.prototype.createConstStream = function(value, startTime) {
   return {
-    currentValue: undefined,
+    tempo: 'const',
+    value: value,
+    startTime: startTime,
+    triggers: [], // TODO: get rid of these probably
+  };
+};
+
+Runtime.prototype.createStepStream = function(initialValue, startTime) {
+  return {
+    tempo: 'step',
+    value: initialValue,
+    startTime: startTime,
     triggers: [],
   };
 };
@@ -3977,12 +4005,12 @@ module.exports = require('./lib/heap');
 'use strict';
 
 var primUtils = require('./primUtils');
-var liftN = primUtils.liftN;
+var liftStep = primUtils.liftStep;
 
-function dynamicApplication(runtime, startTime, argStreams, baseTopoOrder, lexEnv) {
+function dynamicApplication(runtime, startTime, argStreams, outputStream, baseTopoOrder, lexEnv) {
   // make closure for updating activation
   var deactivator;
-  var outputStream = runtime.createStream();
+  var outputStream;
   var funcStream = argStreams[0];
   var actualArgStreams = argStreams.slice(1);
 
@@ -3995,24 +4023,20 @@ function dynamicApplication(runtime, startTime, argStreams, baseTopoOrder, lexEn
     // get activator function from stream
     var activator = runtime.getStreamValue(funcStream);
 
-    // call new activator
-    var result = activator(runtime, atTime, actualArgStreams, baseTopoOrder, lexEnv);
+    // TODO: we could save the last activator, and check if the activator function _actually_ changed...
 
-    if (result === undefined) {
-      throw new Error('activator did not return result');
+    // call new activator
+    var result;
+    if (outputStream) {
+      result = activator(runtime, atTime, actualArgStreams, outputStream, baseTopoOrder, lexEnv);
+    } else {
+      result = activator(runtime, atTime, actualArgStreams, null, baseTopoOrder, lexEnv);
+      // note that we save the outputStream from the first activator, even after it's deactivated. this seems OK
+      outputStream = result.outputStream;
     }
 
     // update current deactivator
     deactivator = result.deactivator;
-
-    // do first copy of 'internal' output to 'external' output
-    runtime.setStreamValue(outputStream, runtime.getStreamValue(result.outputStream), atTime);
-
-    // set trigger to copy output of current activation to output of this application
-    runtime.addTrigger(result.outputStream, function(atTime) {
-      // copy value from 'internal' output to 'external' output
-      runtime.setStreamValue(outputStream, runtime.getStreamValue(result.outputStream), atTime);
-    });
   }
 
   // do first update
@@ -4031,47 +4055,47 @@ function dynamicApplication(runtime, startTime, argStreams, baseTopoOrder, lexEn
 };
 
 module.exports = {
-  ifte: liftN(function(a, b, c) { return a ? b : c; }, 3),
+  ifte: liftStep(function(a, b, c) { return a ? b : c; }, 3),
 
   app: dynamicApplication,
-  prop: liftN(function(a, b) { return a[b]; }, 2),
+  prop: liftStep(function(a, b) { return a[b]; }, 2),
 
-  uplus: liftN(function(a) { return +a; }, 1),
-  uminus: liftN(function(a) { return -a; }, 1),
-  bitnot: liftN(function(a) { return ~a; }, 1),
+  uplus: liftStep(function(a) { return +a; }, 1),
+  uminus: liftStep(function(a) { return -a; }, 1),
+  bitnot: liftStep(function(a) { return ~a; }, 1),
 
-  mul: liftN(function(a, b) { return a*b; }, 2),
-  div: liftN(function(a, b) { return a/b; }, 2),
+  mul: liftStep(function(a, b) { return a*b; }, 2),
+  div: liftStep(function(a, b) { return a/b; }, 2),
 
-  add: liftN(function(a, b) { return a+b; }, 2),
-  sub: liftN(function(a, b) { return a-b; }, 2),
+  add: liftStep(function(a, b) { return a+b; }, 2),
+  sub: liftStep(function(a, b) { return a-b; }, 2),
 
-  lshift: liftN(function(a, b) { return a<<b; }, 2),
-  srshift: liftN(function(a, b) { return a>>b; }, 2),
-  zrshift: liftN(function(a, b) { return a>>>b; }, 2),
+  lshift: liftStep(function(a, b) { return a<<b; }, 2),
+  srshift: liftStep(function(a, b) { return a>>b; }, 2),
+  zrshift: liftStep(function(a, b) { return a>>>b; }, 2),
 
-  lt: liftN(function(a, b) { return a<b; }, 2),
-  lte: liftN(function(a, b) { return a<=b; }, 2),
-  gt: liftN(function(a, b) { return a>b; }, 2),
-  gte: liftN(function(a, b) { return a>=b; }, 2),
-  'in': liftN(function(a, b) { return a in b; }, 2),
+  lt: liftStep(function(a, b) { return a<b; }, 2),
+  lte: liftStep(function(a, b) { return a<=b; }, 2),
+  gt: liftStep(function(a, b) { return a>b; }, 2),
+  gte: liftStep(function(a, b) { return a>=b; }, 2),
+  'in': liftStep(function(a, b) { return a in b; }, 2),
 
-  eq: liftN(function(a, b) { return a===b; }, 2),
-  neq: liftN(function(a, b) { return a!==b; }, 2),
+  eq: liftStep(function(a, b) { return a===b; }, 2),
+  neq: liftStep(function(a, b) { return a!==b; }, 2),
 
-  bitand: liftN(function(a, b) { return a&b; }, 2),
+  bitand: liftStep(function(a, b) { return a&b; }, 2),
 
-  bitxor: liftN(function(a, b) { return a^b; }, 2),
+  bitxor: liftStep(function(a, b) { return a^b; }, 2),
 
-  bitor: liftN(function(a, b) { return a|b; }, 2),
+  bitor: liftStep(function(a, b) { return a|b; }, 2),
 
-  not: liftN(function(a, b) { return !a; }, 1),
+  not: liftStep(function(a, b) { return !a; }, 1),
 
-  and: liftN(function(a, b) { return a && b; }, 2),
+  and: liftStep(function(a, b) { return a && b; }, 2),
 
-  xor: liftN(function(a, b) { return (!!a) ^ (!!b); }, 2),
+  xor: liftStep(function(a, b) { return (!!a) ^ (!!b); }, 2),
 
-  or: liftN(function(a, b) { return a || b; }, 2),
+  or: liftStep(function(a, b) { return a || b; }, 2),
 };
 
 },{"./primUtils":9}],8:[function(require,module,exports){
@@ -4155,25 +4179,38 @@ module.exports = PriorityQueue;
 },{"heap":5}],9:[function(require,module,exports){
 'use strict';
 
-function liftN(func, arity) {
-  return function(runtime, startTime, argStreams, baseTopoOrder, lexEnv) {
+function liftStep(func, arity) {
+  return function(runtime, startTime, argStreams, outputStream, baseTopoOrder, lexEnv) {
     if (argStreams.length !== arity) {
       throw new Error('got wrong number of arguments');
     }
 
-    var outputStream = runtime.createStream();
-
-    var updateTask = function(atTime) {
+    // define function that computes output value from input stream values
+    function computeOutput() {
       var argVals = [];
       for (var i = 0; i < arity; i++) {
         argVals.push(runtime.getStreamValue(argStreams[i]));
       }
-      var outVal = func.apply(null, argVals);
-      runtime.setStreamValue(outputStream, outVal, atTime);
+      return func.apply(null, argVals);
+    }
+
+    // create or validate outputStream, set initial value
+    if (outputStream) {
+      if (outputStream.tempo !== 'step') {
+        throw new Error('Incorrect output stream tempo');
+      }
+      runtime.setStreamValue(outputStream, computeOutput(), startTime);
+    } else {
+      outputStream = runtime.createStepStream(computeOutput(), startTime);
+    }
+
+    // task closure that updates output value
+    function updateTask(atTime) {
+      runtime.setStreamValue(outputStream, computeOutput(), atTime);
     };
 
-    // make closure that queues task to update value in outputStream
-    var updateTrigger = function(atTime) {
+    // closure that queues updateTask
+    function updateTrigger(atTime) {
       runtime.priorityQueue.insert({
         time: atTime,
         topoOrder: baseTopoOrder,
@@ -4181,10 +4218,7 @@ function liftN(func, arity) {
       });
     }
 
-    // set initial output
-    updateTask(startTime);
-
-    // add triggers
+    // add triggers to input streams
     for (var i = 0; i < arity; i++) {
       runtime.addTrigger(argStreams[i], updateTrigger);
     }
@@ -4201,7 +4235,7 @@ function liftN(func, arity) {
 };
 
 module.exports = {
-  liftN: liftN,
+  liftStep: liftStep,
 };
 
 },{}],10:[function(require,module,exports){
@@ -4361,22 +4395,15 @@ function startCompiledProgram(mainFunc) {
 
   // add some "global" inputs to root lexical environment
   rootLexEnv = runtime.createLexEnv({
-    mouseX: runtime.createStream(),
-    mouseY: runtime.createStream(),
-    mousePos: runtime.createStream(),
-    mouseDown: runtime.createStream(),
+    mouseX: runtime.createStepStream(inputValues.mouseX, 0),
+    mouseY: runtime.createStepStream(inputValues.mouseY, 0),
+    mousePos: runtime.createStepStream({x: inputValues.mouseX, y: inputValues.mouseY}, 0),
+    mouseDown: runtime.createStepStream(inputValues.mouseDown, 0),
   });
-
-  // inputs
-  runtime.setStreamValue(rootLexEnv.mouseX, inputValues.mouseX, 0);
-  runtime.setStreamValue(rootLexEnv.mouseY, inputValues.mouseY, 0);
-  runtime.setStreamValue(rootLexEnv.mousePos, {x: inputValues.mouseX, y: inputValues.mouseY}, 0);
-  runtime.setStreamValue(rootLexEnv.mouseDown, inputValues.mouseDown, 0);
 
   // add all builtins to root lexical environment
   for (var k in runtime.builtins) {
-    rootLexEnv[k] = runtime.createStream();
-    runtime.setStreamValue(rootLexEnv[k], runtime.builtins[k], 0);
+    rootLexEnv[k] = runtime.createConstStream(runtime.builtins[k], 0);
   }
 
   // initialize internals
@@ -4386,7 +4413,7 @@ function startCompiledProgram(mainFunc) {
   updateInternalsDisplay();
 
   // assume main activator definition has been generated by compiler
-  currentResult = mainFunc(runtime, 0, [], '', rootLexEnv);
+  currentResult = mainFunc(runtime, 0, [], null, '', rootLexEnv);
 
   witnessOutput(0);
 
