@@ -3503,11 +3503,57 @@ function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder, lex
   };
 };
 
+function timeOfLatest(runtime, startTime, argStreams, outputStream, baseTopoOrder, lexEnv) {
+  if (argStreams.length !== 1) {
+    throw new Error('got wrong number of arguments');
+  }
+
+  var argStream = argStreams[0];
+  if (argStream.tempo !== 'event') {
+    throw new Error('Incorrect input stream tempo');
+  }
+
+  // create or validate outputStream, set initial value
+  if (outputStream) {
+    if (outputStream.tempo !== 'step') {
+      throw new Error('Incorrect output stream tempo');
+    }
+    outputStream.changeValue(0, startTime);
+  } else {
+    outputStream = runtime.createStepStream(0, startTime);
+  }
+
+  // closure to update output value
+  var argChangedTask = function(atTime) {
+    outputStream.changeValue(atTime-startTime, atTime);
+  };
+
+  // make closure to add task when argument value changes
+  var argChangedTrigger = function(atTime) {
+    runtime.priorityQueue.insert({
+      time: atTime,
+      topoOrder: baseTopoOrder,
+      closure: argChangedTask,
+    });
+  };
+
+  // add trigger on argument
+  argStream.addTrigger(argChangedTrigger);
+
+  return {
+    outputStream: outputStream,
+    deactivator: function() {
+      argStream.removeTrigger(argChangedTrigger);
+    },
+  };
+}
+
 module.exports = {
   id: liftStep(function(a) { return a; }, 1),
   Vec2: liftStep(function(x, y) { return {x: x, y: y}; }, 2),
 
   delay1: delay1,
+  timeOfLatest: timeOfLatest,
 };
 
 },{"./primUtils":9}],4:[function(require,module,exports){
@@ -3515,109 +3561,10 @@ module.exports = {
 
 var PriorityQueue = require('./pq');
 
-var Stream = function() {
-};
-
-var ConstStream = function(value, startTime) {
-  this.value = value;
-  this.startTime = startTime;
-  this.triggers = []; // TODO: remove this?
-}
-
-ConstStream.prototype = Object.create(Stream.prototype);
-ConstStream.prototype.constructor = ConstStream;
-
-ConstStream.prototype.tempo = 'const';
-
-ConstStream.prototype.addTrigger = function(closure) {
-  // ignore
-};
-
-ConstStream.prototype.removeTrigger = function(closure) {
-  // ignore
-};
-
-var TriggerSet = function() {
-  this.funcs = [];
-}
-
-TriggerSet.prototype.add = function(func) {
-  this.funcs.push(func);
-}
-
-TriggerSet.prototype.remove = function(func) {
-  var idx;
-
-  for (var i = 0; i < this.funcs.length; i++) {
-    if (this.funcs[i] === func) {
-      if (idx !== undefined) {
-        throw new Error('found two identical func');
-      }
-      idx = i;
-    }
-  }
-
-  if (idx === undefined) {
-    throw new Error('no matching func found');
-  }
-
-  // remove matched func from func list
-  this.funcs.splice(idx, 1);
-};
-
-TriggerSet.prototype.fire = function(atTime) {
-  for (var i = 0; i < this.funcs.length; i++) {
-    this.funcs[i](atTime);
-  }
-}
-
-var StepStream = function(initialValue, startTime) {
-  this.value = initialValue;
-  this.startTime = startTime;
-  this.triggerSet = new TriggerSet();
-};
-
-StepStream.prototype = Object.create(Stream.prototype);
-StepStream.prototype.constructor = StepStream;
-
-StepStream.prototype.tempo = 'step';
-
-StepStream.prototype.changeValue = function(value, atTime) {
-  this.value = value;
-  this.triggerSet.fire(atTime);
-}
-
-StepStream.prototype.addTrigger = function(closure) {
-  this.triggerSet.add(closure);
-};
-
-StepStream.prototype.removeTrigger = function(closure) {
-  this.triggerSet.remove(closure);
-};
-
-var EventStream = function(initialValue, startTime) {
-  this.value = initialValue;
-  this.startTime = startTime;
-  this.triggerSet = new TriggerSet();
-}
-
-EventStream.prototype = Object.create(Stream.prototype);
-EventStream.prototype.constructor = EventStream;
-
-EventStream.prototype.tempo = 'event';
-
-EventStream.prototype.emitValue = function(value, atTime) {
-  this.value = value;
-  this.triggerSet.fire(atTime);
-}
-
-EventStream.prototype.addTrigger = function(closure) {
-  this.triggerSet.add(closure);
-};
-
-EventStream.prototype.removeTrigger = function(closure) {
-  this.triggerSet.remove(closure);
-};
+var streams = require('./streams');
+var ConstStream = streams.ConstStream;
+var StepStream = streams.StepStream;
+var EventStream = streams.EventStream;
 
 var Runtime = function() {
   this.priorityQueue = new PriorityQueue();
@@ -3651,6 +3598,10 @@ Runtime.prototype.createStepStream = function(initialValue, startTime) {
   return new StepStream(initialValue, startTime);
 };
 
+Runtime.prototype.createEventStream = function(initialValue, startTime) {
+  return new EventStream(initialValue, startTime);
+};
+
 // run until time of next task is _greater than_ toTime
 Runtime.prototype.runToTime = function(toTime) {
   while (true) {
@@ -3680,7 +3631,7 @@ Runtime.prototype.opFuncs = require('./opFuncs');
 
 module.exports = Runtime;
 
-},{"./builtins":3,"./opFuncs":7,"./pq":8}],5:[function(require,module,exports){
+},{"./builtins":3,"./opFuncs":7,"./pq":8,"./streams":10}],5:[function(require,module,exports){
 module.exports = require('./lib/heap');
 
 },{"./lib/heap":6}],6:[function(require,module,exports){
@@ -4300,6 +4251,135 @@ module.exports = {
 },{}],10:[function(require,module,exports){
 'use strict';
 
+var Stream = function() {
+};
+
+var ConstStream = function(value, startTime) {
+  this.value = value;
+  this.startTime = startTime;
+  this.triggers = []; // TODO: remove this?
+}
+
+ConstStream.prototype = Object.create(Stream.prototype);
+ConstStream.prototype.constructor = ConstStream;
+
+ConstStream.prototype.tempo = 'const';
+
+ConstStream.prototype.addTrigger = function(closure) {
+  // ignore
+};
+
+ConstStream.prototype.removeTrigger = function(closure) {
+  // ignore
+};
+
+ConstStream.prototype.hasTriggers = function() {
+  return false;
+}
+
+var TriggerSet = function() {
+  this.funcs = [];
+}
+
+TriggerSet.prototype.add = function(func) {
+  this.funcs.push(func);
+}
+
+TriggerSet.prototype.remove = function(func) {
+  var idx;
+
+  for (var i = 0; i < this.funcs.length; i++) {
+    if (this.funcs[i] === func) {
+      if (idx !== undefined) {
+        throw new Error('found two identical func');
+      }
+      idx = i;
+    }
+  }
+
+  if (idx === undefined) {
+    throw new Error('no matching func found');
+  }
+
+  // remove matched func from func list
+  this.funcs.splice(idx, 1);
+};
+
+TriggerSet.prototype.fire = function(atTime) {
+  for (var i = 0; i < this.funcs.length; i++) {
+    this.funcs[i](atTime);
+  }
+}
+
+TriggerSet.prototype.isEmpty = function() {
+  return (this.funcs.length === 0);
+}
+
+var StepStream = function(initialValue, startTime) {
+  this.value = initialValue;
+  this.startTime = startTime;
+  this.triggerSet = new TriggerSet();
+};
+
+StepStream.prototype = Object.create(Stream.prototype);
+StepStream.prototype.constructor = StepStream;
+
+StepStream.prototype.tempo = 'step';
+
+StepStream.prototype.changeValue = function(value, atTime) {
+  this.value = value;
+  this.triggerSet.fire(atTime);
+}
+
+StepStream.prototype.addTrigger = function(closure) {
+  this.triggerSet.add(closure);
+};
+
+StepStream.prototype.removeTrigger = function(closure) {
+  this.triggerSet.remove(closure);
+};
+
+StepStream.prototype.hasTriggers = function() {
+  return !this.triggerSet.isEmpty();
+}
+
+var EventStream = function(initialValue, startTime) {
+  this.value = initialValue;
+  this.startTime = startTime;
+  this.triggerSet = new TriggerSet();
+}
+
+EventStream.prototype = Object.create(Stream.prototype);
+EventStream.prototype.constructor = EventStream;
+
+EventStream.prototype.tempo = 'event';
+
+EventStream.prototype.emitValue = function(value, atTime) {
+  this.value = value;
+  this.triggerSet.fire(atTime);
+}
+
+EventStream.prototype.addTrigger = function(closure) {
+  this.triggerSet.add(closure);
+};
+
+EventStream.prototype.removeTrigger = function(closure) {
+  this.triggerSet.remove(closure);
+};
+
+EventStream.prototype.hasTriggers = function() {
+  return !this.triggerSet.isEmpty();
+}
+
+module.exports = {
+  ConstStream: ConstStream,
+  StepStream: StepStream,
+  EventStream: EventStream,
+};
+
+},{}],11:[function(require,module,exports){
+'use strict';
+
  // for loading demos
 var Runtime = require('../runtime');
 var Compiler = require('../compiler');
@@ -4442,7 +4522,7 @@ function startCompiledProgram(mainFunc) {
 
     // make sure there are no triggers on global streams
     for (var k in rootLexEnv) {
-      if ((rootLexEnv[k].tempo !== 'const') && (rootLexEnv[k].triggerSet.funcs.length > 0)) {
+      if (rootLexEnv[k].hasTriggers()) {
         throw new Error('something went wrong');
       }
     }
@@ -4458,6 +4538,7 @@ function startCompiledProgram(mainFunc) {
     mouseY: runtime.createStepStream(inputValues.mouseY, 0),
     mousePos: runtime.createStepStream({x: inputValues.mouseX, y: inputValues.mouseY}, 0),
     mouseDown: runtime.createStepStream(inputValues.mouseDown, 0),
+    redraw: runtime.createEventStream(undefined, 0),
   });
 
   // add all builtins to root lexical environment
@@ -4533,4 +4614,4 @@ document.addEventListener('DOMContentLoaded', function() {
   startDemoProg(demoProgsList[0]);
 });
 
-},{"../compiler":1,"../runtime":4}]},{},[10]);
+},{"../compiler":1,"../runtime":4}]},{},[11]);

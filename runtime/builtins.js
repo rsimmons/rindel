@@ -94,9 +94,55 @@ function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder, lex
   };
 };
 
+function timeOfLatest(runtime, startTime, argStreams, outputStream, baseTopoOrder, lexEnv) {
+  if (argStreams.length !== 1) {
+    throw new Error('got wrong number of arguments');
+  }
+
+  var argStream = argStreams[0];
+  if (argStream.tempo !== 'event') {
+    throw new Error('Incorrect input stream tempo');
+  }
+
+  // create or validate outputStream, set initial value
+  if (outputStream) {
+    if (outputStream.tempo !== 'step') {
+      throw new Error('Incorrect output stream tempo');
+    }
+    outputStream.changeValue(0, startTime);
+  } else {
+    outputStream = runtime.createStepStream(0, startTime);
+  }
+
+  // closure to update output value
+  var argChangedTask = function(atTime) {
+    outputStream.changeValue(atTime-startTime, atTime);
+  };
+
+  // make closure to add task when argument value changes
+  var argChangedTrigger = function(atTime) {
+    runtime.priorityQueue.insert({
+      time: atTime,
+      topoOrder: baseTopoOrder,
+      closure: argChangedTask,
+    });
+  };
+
+  // add trigger on argument
+  argStream.addTrigger(argChangedTrigger);
+
+  return {
+    outputStream: outputStream,
+    deactivator: function() {
+      argStream.removeTrigger(argChangedTrigger);
+    },
+  };
+}
+
 module.exports = {
   id: liftStep(function(a) { return a; }, 1),
   Vec2: liftStep(function(x, y) { return {x: x, y: y}; }, 2),
 
   delay1: delay1,
+  timeOfLatest: timeOfLatest,
 };

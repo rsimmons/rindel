@@ -142,7 +142,7 @@ function startCompiledProgram(mainFunc) {
 
     // make sure there are no triggers on global streams
     for (var k in rootLexEnv) {
-      if ((rootLexEnv[k].tempo !== 'const') && (rootLexEnv[k].triggerSet.funcs.length > 0)) {
+      if (rootLexEnv[k].hasTriggers()) {
         throw new Error('something went wrong');
       }
     }
