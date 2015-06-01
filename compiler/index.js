@@ -183,7 +183,7 @@ function compileFunction(paramNames, bodyParts) {
 
   function getNodeStreamExpr(node) {
     if ((node.type === NODE_OP) || (node.type === NODE_LITERAL)) {
-      return '$_' + node.topoOrder;
+      return '$_reg' + node.topoOrder;
     } else if (node.type === NODE_LEXENV) {
       return 'lexEnv.' + node.ident;
     } else {
@@ -208,9 +208,9 @@ function compileFunction(paramNames, bodyParts) {
       var opFuncName = 'runtime.opFuncs.' + node.op;
 
       // TODO: MUST zero-pad topoOrder before adding to baseTopoOrder or bad bad things will happen in larger functions
-      codeFragments.push('  var $_' + node.topoOrder + 'act = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], null, baseTopoOrder+\'' + node.topoOrder + '\'); var $_' + node.topoOrder + ' = $_' + node.topoOrder + 'act.outputStream\n');
+      codeFragments.push('  var $_act' + node.topoOrder + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], null, baseTopoOrder+\'' + node.topoOrder + '\'); var $_reg' + node.topoOrder + ' = $_act' + node.topoOrder + '.outputStream\n');
 
-      deactivatorCalls.push('$_' + node.topoOrder + 'act.deactivator()');
+      deactivatorCalls.push('$_act' + node.topoOrder + '.deactivator()');
     } else if (node.type === NODE_LEXENV) {
       // do nothing
     } else if (node.type === NODE_LITERAL) {
@@ -227,7 +227,7 @@ function compileFunction(paramNames, bodyParts) {
         throw new Error('unexpected literal kind');
       }
 
-      codeFragments.push('  var $_' + node.topoOrder + ' = runtime.createConstStream(' + litValueExpr + ', startTime);\n');
+      codeFragments.push('  var $_reg' + node.topoOrder + ' = runtime.createConstStream(' + litValueExpr + ', startTime);\n');
     } else {
       throw new Error('Unexpected node type found in tree');
     }
