@@ -3244,13 +3244,34 @@ module.exports = (function() {
       s0 = peg$currPos;
       s1 = peg$parseopen_paren();
       if (s1 !== peg$FAILED) {
-        s2 = peg$parsearg_list();
+        s2 = peg$parseclose_paren();
         if (s2 !== peg$FAILED) {
-          s3 = peg$parseclose_paren();
-          if (s3 !== peg$FAILED) {
-            peg$reportedPos = s0;
-            s1 = peg$c126(s2);
-            s0 = s1;
+          peg$reportedPos = s0;
+          s1 = peg$c85();
+          s0 = s1;
+        } else {
+          peg$currPos = s0;
+          s0 = peg$c4;
+        }
+      } else {
+        peg$currPos = s0;
+        s0 = peg$c4;
+      }
+      if (s0 === peg$FAILED) {
+        s0 = peg$currPos;
+        s1 = peg$parseopen_paren();
+        if (s1 !== peg$FAILED) {
+          s2 = peg$parsearg_list();
+          if (s2 !== peg$FAILED) {
+            s3 = peg$parseclose_paren();
+            if (s3 !== peg$FAILED) {
+              peg$reportedPos = s0;
+              s1 = peg$c126(s2);
+              s0 = s1;
+            } else {
+              peg$currPos = s0;
+              s0 = peg$c4;
+            }
           } else {
             peg$currPos = s0;
             s0 = peg$c4;
@@ -3259,9 +3280,6 @@ module.exports = (function() {
           peg$currPos = s0;
           s0 = peg$c4;
         }
-      } else {
-        peg$currPos = s0;
-        s0 = peg$c4;
       }
 
       return s0;

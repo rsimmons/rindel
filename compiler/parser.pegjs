@@ -319,7 +319,8 @@ dot_access
   = dot ident:var_identifier { return ident; }
 
 parenth_arg_list
-  = open_paren argList:arg_list close_paren { return argList; }
+  = open_paren close_paren { return []; }
+  / open_paren argList:arg_list close_paren { return argList; }
 
 // This returns an array of expression objects.
 arg_list
