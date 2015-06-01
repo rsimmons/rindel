@@ -181,6 +181,16 @@ function compileFunction(paramNames, bodyParts) {
     node.state = STATE_ADDED;
   }
   toposortVisit(outputNode.node);
+  // NOTE: nodes not already added to sortedNodes are not needed to compute output,
+  //  but we might have inner functions that refer to names defined in this scope
+  for (var k in locallyBoundNames) {
+    toposortVisit(locallyBoundNames[k].node);
+  }
+
+  // store the topographic sort order numbers on nodes themselves
+  for (var i = 0; i < sortedNodes.length; i++) {
+    sortedNodes[i].topoOrder = i;
+  }
 
   // begin code generation
   var codeFragments = [];
@@ -188,6 +198,10 @@ function compileFunction(paramNames, bodyParts) {
   // this is sort of ghetto but will do for now
   codeFragments.push('(function(runtime, startTime, argStreams, outputStream, baseTopoOrder, lexEnv) {\n');
   codeFragments.push('  if (argStreams.length !== ' + paramNames.length + ') { throw new Error(\'called with wrong number of arguments\'); }\n');
+
+  for (var i = 0; i < paramNames.length; i++) {
+    codeFragments.push('  var $_var' + paramNames[i] + ' = argStreams[' + i + '];\n');
+  }
 
   function getNodeStreamExpr(node) {
     if ((node.type === NODE_OP) || (node.type === NODE_LITERAL)) {
@@ -201,13 +215,9 @@ function compileFunction(paramNames, bodyParts) {
 
   // iterate sorted nodes, doing some code generation
   var deactivatorCalls = [];
-  var nextTopoIdx = 0;
   for (var i = 0; i < sortedNodes.length; i++) {
     var node = sortedNodes[i];
     if (node.type === NODE_OP) {
-      node.topoOrder = nextTopoIdx;
-      nextTopoIdx++;
-
       var argStreamExprs = [];
       for (var j = 0; j < node.argRefs.length; j++) {
         argStreamExprs.push(getNodeStreamExpr(node.argRefs[j].node));
@@ -222,9 +232,6 @@ function compileFunction(paramNames, bodyParts) {
     } else if (node.type === NODE_LEXENV) {
       // do nothing
     } else if (node.type === NODE_LITERAL) {
-      node.topoOrder = nextTopoIdx;
-      nextTopoIdx++;
-
       var litValueExpr;
       if (node.kind === 'string') {
         // TODO: we might want to call a proper repr()-style escape on the value, but it should only be safe characters anyways
@@ -247,6 +254,12 @@ function compileFunction(paramNames, bodyParts) {
       throw new Error('Unexpected node type found in tree');
     }
   }
+
+  // add vars for bound names
+  for (var k in locallyBoundNames) {
+    codeFragments.push('  var $_var' + k + ' = $_reg' + locallyBoundNames[k].node.topoOrder + ';\n');
+  }
+
   // I don't think these actually need to be reversed for things to work correctly,
   //  but it just seems appropriate.
   deactivatorCalls.reverse();
