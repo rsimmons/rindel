@@ -186,7 +186,7 @@ function_body_part
 
 primary_expr
   = open_paren expr:expression close_paren { return expr; }
-  / funcdef:function_def { return {type: 'literal', kind: 'funcdef', value: funcdef}; }
+  / funcdef:function_def { return {type: 'literal', kind: 'function', value: funcdef}; }
   / number:number { return {type: 'literal', kind: 'number', value: number}; }
   / kw_if condition:expression kw_then consequent:expression kw_else alternative:expression { return {type: 'op', op: 'ifte', args: [condition, consequent, alternative]}; }
   / ident:var_identifier { return {type: 'varIdent', ident: ident}; }

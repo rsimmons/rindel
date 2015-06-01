@@ -65,3 +65,10 @@ yield Vec2(mousePos.x + 50*cos(10*t), mousePos.y + 50*sin(10*t))
 ---
 <p></p>
 
+=====
+
+funcdef test
+---
+yield (func(x) {yield mousePos})(mouseDown)
+---
+<p></p>

@@ -45,6 +45,11 @@ function createNodesRefs(exprNode) {
 }
 
 function compileFunction(paramNames, bodyParts) {
+  var paramNamesSet = {};
+  for (var i = 0; i < paramNames.length; i++) {
+    paramNamesSet[paramNames[i]] = null;
+  }
+
   // verify that there is exactly one yield clause
   var yieldObj;
   for (var i = 0; i < bodyParts.length; i++) {
@@ -73,6 +78,9 @@ function compileFunction(paramNames, bodyParts) {
   for (var i = 0; i < bodyParts.length; i++) {
     var bp = bodyParts[i];
     if (bp.type === 'binding') {
+      if (paramNamesSet.hasOwnProperty(bp.ident)) {
+        throw new Error('Can\'t bind name to same name as a parameter');
+      }
       if (locallyBoundNames.hasOwnProperty(bp.ident)) {
         throw new Error('Same name bound more than once');
       }
@@ -208,7 +216,7 @@ function compileFunction(paramNames, bodyParts) {
       var opFuncName = 'runtime.opFuncs.' + node.op;
 
       // TODO: MUST zero-pad topoOrder before adding to baseTopoOrder or bad bad things will happen in larger functions
-      codeFragments.push('  var $_act' + node.topoOrder + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], null, baseTopoOrder+\'' + node.topoOrder + '\'); var $_reg' + node.topoOrder + ' = $_act' + node.topoOrder + '.outputStream\n');
+      codeFragments.push('  var $_act' + node.topoOrder + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], null, baseTopoOrder+\'' + node.topoOrder + '\', lexEnv); var $_reg' + node.topoOrder + ' = $_act' + node.topoOrder + '.outputStream\n');
 
       deactivatorCalls.push('$_act' + node.topoOrder + '.deactivator()');
     } else if (node.type === NODE_LEXENV) {
@@ -223,6 +231,13 @@ function compileFunction(paramNames, bodyParts) {
         litValueExpr = '\'' + node.value + '\'';
       } else if (node.kind === 'number') {
         litValueExpr = node.value.toString();
+      } else if (node.kind === 'function') {
+        var subFuncCode = compileFunction(node.value.params, node.value.body);
+        var lines = subFuncCode.trim().split('\n');
+        for (var j = 1; j < lines.length; j++) {
+          lines[j] = '  ' + lines[j];
+        }
+        litValueExpr = lines.join('\n');
       } else {
         throw new Error('unexpected literal kind');
       }
