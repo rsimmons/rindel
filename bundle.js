@@ -3551,6 +3551,8 @@ function timeOfLatest(runtime, startTime, argStreams, outputStream, baseTopoOrde
 module.exports = {
   id: liftStep(function(a) { return a; }, 1),
   Vec2: liftStep(function(x, y) { return {x: x, y: y}; }, 2),
+  sin: liftStep(function(x) { return Math.sin(x); }, 1),
+  cos: liftStep(function(x) { return Math.cos(x); }, 1),
 
   delay1: delay1,
   timeOfLatest: timeOfLatest,
@@ -4387,7 +4389,7 @@ var Compiler = require('../compiler');
 var demoProgsMap = {};
 var demoProgsList = [];
 
-var demoProgsData = "same position\n---\nyield mousePos\n---\n<p>This program simply yields the mouse position unchanged, causing the square to be at the same position as the mouse.</p>\n\n=====\n\ndelayed position\n---\nyield delay1(mousePos)\n---\n<p>This program yields the mouse position delayed by 1 second. Note the behavior of the \"JS timeout outstanding\" value on the left, as you alternately move the mouse and stop moving it for a bit. If there are \"buffered\" mouse movements still to be played out, there is a timeout set for those. If the mouse has been still for a least one second, no changes will be buffered and so no timeout will be set.</p><p>Also note, if you quickly move the pointer and click to start this same program again, the square jumps to match the mouse position. This is because the delay1 function relays its initial input as its output for the first second.</p>\n\n=====\n\nswitch on button\n---\nyield if mouseDown then mousePos else delay1(mousePos)\n---\n<p>This program switches between yielding the current mouse position and the delayed mouse position, based on whether the mouse button is down. The if/then/else syntax is an expression (like the ternary operator \"?:\"), not a statement.</p><p>Note that even if the mouse button is held down, the delayed position is computed. This is necessary to avoid \"time leaks\", i.e. we don\\'t know when we\\'ll need the value when the mouse button is released, so we must keep it up to date.</p>\n\n=====\n\ndynamic application\n---\nyield (if mouseDown then id else delay1)(mousePos)\n---\n<p>This program illustrates a subtle and important detail, when compared to the previous program. In this program, we apply a function to the mouse position, but the value of that function we apply is itself dynamic. It switches from the value \"id\" (identity function) to the value \"delay1\". This is similar to the previous program, except when the mouse is released, the square stays at the current mouse position. This is because when id or delay1 are switched into action, they always start \"from scratch\". Only one is running at a time. And when delay1 starts, it mirrors its input for the first second. In the previous program, delay1 is always running.</p>\n\n=====\n\nprops and ctor\n---\nyield Vec2(mousePos.y, mousePos.x)\n---\n<p>This program demonstrates property access with the dot operator, and calling a \"constructor\" function which is just a builtin in this case.</p>\n\n=====\n\nbasic math, bindings\n---\nx = 800 - 1.5*mousePos.x\ny = mousePos.y + 50\nyield Vec2(x, y)\n---\n<p>Here we demonstrate binding expressions to names and basic math operators. Note the precedence of multiplicative operators over additive operators.</p>\n\n=====\n\nstrange movement\n---\nx = 0.5*delay1(mousePos.x) + 0.5*mousePos.x\ny = 0.5*delay1(mousePos.y) + 0.5*mousePos.y\nyield Vec2(x, y)\n---\n<p>The output position is halfway between the current mouse position and the 1-second-delayed mouse position. This type of thing would be annoying to code in regular Javascript, but is easy in this language.</p>\n\n";
+var demoProgsData = "same position\n---\nyield mousePos\n---\n<p>This program simply yields the mouse position unchanged, causing the square to be at the same position as the mouse.</p>\n\n=====\n\ndelayed position\n---\nyield delay1(mousePos)\n---\n<p>This program yields the mouse position delayed by 1 second. Note the behavior of the \"JS timeout outstanding\" value on the left, as you alternately move the mouse and stop moving it for a bit. If there are \"buffered\" mouse movements still to be played out, there is a timeout set for those. If the mouse has been still for a least one second, no changes will be buffered and so no timeout will be set.</p><p>Also note, if you quickly move the pointer and click to start this same program again, the square jumps to match the mouse position. This is because the delay1 function relays its initial input as its output for the first second.</p>\n\n=====\n\nswitch on button\n---\nyield if mouseDown then mousePos else delay1(mousePos)\n---\n<p>This program switches between yielding the current mouse position and the delayed mouse position, based on whether the mouse button is down. The if/then/else syntax is an expression (like the ternary operator \"?:\"), not a statement.</p><p>Note that even if the mouse button is held down, the delayed position is computed. This is necessary to avoid \"time leaks\", i.e. we don\\'t know when we\\'ll need the value when the mouse button is released, so we must keep it up to date.</p>\n\n=====\n\ndynamic application\n---\nyield (if mouseDown then id else delay1)(mousePos)\n---\n<p>This program illustrates a subtle and important detail, when compared to the previous program. In this program, we apply a function to the mouse position, but the value of that function we apply is itself dynamic. It switches from the value \"id\" (identity function) to the value \"delay1\". This is similar to the previous program, except when the mouse is released, the square stays at the current mouse position. This is because when id or delay1 are switched into action, they always start \"from scratch\". Only one is running at a time. And when delay1 starts, it mirrors its input for the first second. In the previous program, delay1 is always running.</p>\n\n=====\n\nprops and ctor\n---\nyield Vec2(mousePos.y, mousePos.x)\n---\n<p>This program demonstrates property access with the dot operator, and calling a \"constructor\" function which is just a builtin in this case.</p>\n\n=====\n\nbasic math, bindings\n---\nx = 800 - 1.5*mousePos.x\ny = mousePos.y + 50\nyield Vec2(x, y)\n---\n<p>Here we demonstrate binding expressions to names and basic math operators. Note the precedence of multiplicative operators over additive operators.</p>\n\n=====\n\nstrange movement\n---\nx = 0.5*delay1(mousePos.x) + 0.5*mousePos.x\ny = 0.5*delay1(mousePos.y) + 0.5*mousePos.y\nyield Vec2(x, y)\n---\n<p>The output position is halfway between the current mouse position and the 1-second-delayed mouse position. This type of thing would be annoying to code in regular Javascript, but is easy in this language.</p>\n\n=====\n\ntime dependence\n---\nt = timeOfLatest(redraw)\nyield Vec2(mousePos.x + 50*cos(10*t), mousePos.y + 50*sin(10*t))\n---\n<p></p>\n\n";
 
 var demoProgsDataList = demoProgsData.split('\n=====\n');
 for (var i = 0; i < demoProgsDataList.length; i++) {
@@ -4409,10 +4411,11 @@ for (var i = 0; i < demoProgsDataList.length; i++) {
   demoProgsList.push(progInfo);
 }
 
-var initialDateNow = Date.now();
+var initialDateNow;
 var runtime;
 var rootLexEnv;
 var timeoutID;
+var rafID; // requestAnimationFrame
 var currentResult;
 var inputValues = {
   mouseX: 0,
@@ -4421,18 +4424,33 @@ var inputValues = {
 }
 var internals;
 
+function initializeMasterTime() {
+  initialDateNow = Date.now();
+}
+
 function getMasterTime() {
   return 0.001*(Date.now() - initialDateNow);
 }
 
 // "run" the runtime as necessary
 function tryRunning() {
-  if (!runtime.isRunnable()) {
+  if (!runtime.isRunnable() && !rootLexEnv.redraw.hasTriggers()) {
     return;
   }
 
   var t = getMasterTime();
+
+  rootLexEnv.redraw.emitValue(null, t);
+
   var nextTime = runtime.runToTime(t);
+
+  // if program depends on redraw input, and no outstanding call to requestAnimationFrame already, make call
+  if (rootLexEnv.redraw.hasTriggers() && !rafID) {
+    rafID = window.requestAnimationFrame(function(highResTime) {
+      rafID = null;
+      tryRunning();
+    });
+  }
 
   if (nextTime && !timeoutID) {
     timeoutID = window.setTimeout(function() {
@@ -4530,6 +4548,7 @@ function startCompiledProgram(mainFunc) {
     // end sanity checking
   }
 
+  initializeMasterTime();
   runtime = new Runtime();
 
   // add some "global" inputs to root lexical environment
