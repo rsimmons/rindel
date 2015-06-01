@@ -46,6 +46,11 @@ function createNodesRefs(exprNode) {
 }
 
 function compileFunction(paramNames, bodyParts) {
+  var paramNamesSet = {};
+  for (var i = 0; i < paramNames.length; i++) {
+    paramNamesSet[paramNames[i]] = null;
+  }
+
   // verify that there is exactly one yield clause
   var yieldObj;
   for (var i = 0; i < bodyParts.length; i++) {
@@ -74,6 +79,9 @@ function compileFunction(paramNames, bodyParts) {
   for (var i = 0; i < bodyParts.length; i++) {
     var bp = bodyParts[i];
     if (bp.type === 'binding') {
+      if (paramNamesSet.hasOwnProperty(bp.ident)) {
+        throw new Error('Can\'t bind name to same name as a parameter');
+      }
       if (locallyBoundNames.hasOwnProperty(bp.ident)) {
         throw new Error('Same name bound more than once');
       }
@@ -209,7 +217,7 @@ function compileFunction(paramNames, bodyParts) {
       var opFuncName = 'runtime.opFuncs.' + node.op;
 
       // TODO: MUST zero-pad topoOrder before adding to baseTopoOrder or bad bad things will happen in larger functions
-      codeFragments.push('  var $_act' + node.topoOrder + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], null, baseTopoOrder+\'' + node.topoOrder + '\'); var $_reg' + node.topoOrder + ' = $_act' + node.topoOrder + '.outputStream\n');
+      codeFragments.push('  var $_act' + node.topoOrder + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], null, baseTopoOrder+\'' + node.topoOrder + '\', lexEnv); var $_reg' + node.topoOrder + ' = $_act' + node.topoOrder + '.outputStream\n');
 
       deactivatorCalls.push('$_act' + node.topoOrder + '.deactivator()');
     } else if (node.type === NODE_LEXENV) {
@@ -224,6 +232,13 @@ function compileFunction(paramNames, bodyParts) {
         litValueExpr = '\'' + node.value + '\'';
       } else if (node.kind === 'number') {
         litValueExpr = node.value.toString();
+      } else if (node.kind === 'function') {
+        var subFuncCode = compileFunction(node.value.params, node.value.body);
+        var lines = subFuncCode.trim().split('\n');
+        for (var j = 1; j < lines.length; j++) {
+          lines[j] = '  ' + lines[j];
+        }
+        litValueExpr = lines.join('\n');
       } else {
         throw new Error('unexpected literal kind');
       }
@@ -406,7 +421,7 @@ module.exports = (function() {
         peg$c89 = function(expr) { return {type: 'yield', expr: expr}; },
         peg$c90 = function(ident, expr) { return {type: 'binding', ident: ident, expr: expr}; },
         peg$c91 = function(expr) { return expr; },
-        peg$c92 = function(funcdef) { return {type: 'literal', kind: 'funcdef', value: funcdef}; },
+        peg$c92 = function(funcdef) { return {type: 'literal', kind: 'function', value: funcdef}; },
         peg$c93 = function(number) { return {type: 'literal', kind: 'number', value: number}; },
         peg$c94 = function(condition, consequent, alternative) { return {type: 'op', op: 'ifte', args: [condition, consequent, alternative]}; },
         peg$c95 = function(ident) { return {type: 'varIdent', ident: ident}; },
@@ -4622,7 +4637,7 @@ var Compiler = require('../compiler');
 var demoProgsMap = {};
 var demoProgsList = [];
 
-var demoProgsData = "same position\n---\nyield mousePos\n---\n<p>This program simply yields the mouse position unchanged, causing the square to be at the same position as the mouse.</p>\n\n=====\n\ndelayed position\n---\nyield delay1(mousePos)\n---\n<p>This program yields the mouse position delayed by 1 second. Note the behavior of the \"JS timeout outstanding\" value on the left, as you alternately move the mouse and stop moving it for a bit. If there are \"buffered\" mouse movements still to be played out, there is a timeout set for those. If the mouse has been still for a least one second, no changes will be buffered and so no timeout will be set.</p><p>Also note, if you quickly move the pointer and click to start this same program again, the square jumps to match the mouse position. This is because the delay1 function relays its initial input as its output for the first second.</p>\n\n=====\n\nswitch on button\n---\nyield if mouseDown then mousePos else delay1(mousePos)\n---\n<p>This program switches between yielding the current mouse position and the delayed mouse position, based on whether the mouse button is down. The if/then/else syntax is an expression (like the ternary operator \"?:\"), not a statement.</p><p>Note that even if the mouse button is held down, the delayed position is computed. This is necessary to avoid \"time leaks\", i.e. we don\\'t know when we\\'ll need the value when the mouse button is released, so we must keep it up to date.</p>\n\n=====\n\ndynamic application\n---\nyield (if mouseDown then id else delay1)(mousePos)\n---\n<p>This program illustrates a subtle and important detail, when compared to the previous program. In this program, we apply a function to the mouse position, but the value of that function we apply is itself dynamic. It switches from the value \"id\" (identity function) to the value \"delay1\". This is similar to the previous program, except when the mouse is released, the square stays at the current mouse position. This is because when id or delay1 are switched into action, they always start \"from scratch\". Only one is running at a time. And when delay1 starts, it mirrors its input for the first second. In the previous program, delay1 is always running.</p>\n\n=====\n\nprops and ctor\n---\nyield Vec2(mousePos.y, mousePos.x)\n---\n<p>This program demonstrates property access with the dot operator, and calling a \"constructor\" function which is just a builtin in this case.</p>\n\n=====\n\nbasic math, bindings\n---\nx = 800 - 1.5*mousePos.x\ny = mousePos.y + 50\nyield Vec2(x, y)\n---\n<p>Here we demonstrate binding expressions to names and basic math operators. Note the precedence of multiplicative operators over additive operators.</p>\n\n=====\n\nstrange movement\n---\nx = 0.5*delay1(mousePos.x) + 0.5*mousePos.x\ny = 0.5*delay1(mousePos.y) + 0.5*mousePos.y\nyield Vec2(x, y)\n---\n<p>The output position is halfway between the current mouse position and the 1-second-delayed mouse position. This type of thing would be annoying to code in regular Javascript, but is easy in this language.</p>\n\n=====\n\ntime dependence\n---\nt = timeOfLatest(redraw)\nyield Vec2(mousePos.x + 50*cos(10*t), mousePos.y + 50*sin(10*t))\n---\n<p></p>\n\n";
+var demoProgsData = "same position\n---\nyield mousePos\n---\n<p>This program simply yields the mouse position unchanged, causing the square to be at the same position as the mouse.</p>\n\n=====\n\ndelayed position\n---\nyield delay1(mousePos)\n---\n<p>This program yields the mouse position delayed by 1 second. Note the behavior of the \"JS timeout outstanding\" value on the left, as you alternately move the mouse and stop moving it for a bit. If there are \"buffered\" mouse movements still to be played out, there is a timeout set for those. If the mouse has been still for a least one second, no changes will be buffered and so no timeout will be set.</p><p>Also note, if you quickly move the pointer and click to start this same program again, the square jumps to match the mouse position. This is because the delay1 function relays its initial input as its output for the first second.</p>\n\n=====\n\nswitch on button\n---\nyield if mouseDown then mousePos else delay1(mousePos)\n---\n<p>This program switches between yielding the current mouse position and the delayed mouse position, based on whether the mouse button is down. The if/then/else syntax is an expression (like the ternary operator \"?:\"), not a statement.</p><p>Note that even if the mouse button is held down, the delayed position is computed. This is necessary to avoid \"time leaks\", i.e. we don\\'t know when we\\'ll need the value when the mouse button is released, so we must keep it up to date.</p>\n\n=====\n\ndynamic application\n---\nyield (if mouseDown then id else delay1)(mousePos)\n---\n<p>This program illustrates a subtle and important detail, when compared to the previous program. In this program, we apply a function to the mouse position, but the value of that function we apply is itself dynamic. It switches from the value \"id\" (identity function) to the value \"delay1\". This is similar to the previous program, except when the mouse is released, the square stays at the current mouse position. This is because when id or delay1 are switched into action, they always start \"from scratch\". Only one is running at a time. And when delay1 starts, it mirrors its input for the first second. In the previous program, delay1 is always running.</p>\n\n=====\n\nprops and ctor\n---\nyield Vec2(mousePos.y, mousePos.x)\n---\n<p>This program demonstrates property access with the dot operator, and calling a \"constructor\" function which is just a builtin in this case.</p>\n\n=====\n\nbasic math, bindings\n---\nx = 800 - 1.5*mousePos.x\ny = mousePos.y + 50\nyield Vec2(x, y)\n---\n<p>Here we demonstrate binding expressions to names and basic math operators. Note the precedence of multiplicative operators over additive operators.</p>\n\n=====\n\nstrange movement\n---\nx = 0.5*delay1(mousePos.x) + 0.5*mousePos.x\ny = 0.5*delay1(mousePos.y) + 0.5*mousePos.y\nyield Vec2(x, y)\n---\n<p>The output position is halfway between the current mouse position and the 1-second-delayed mouse position. This type of thing would be annoying to code in regular Javascript, but is easy in this language.</p>\n\n=====\n\ntime dependence\n---\nt = timeOfLatest(redraw)\nyield Vec2(mousePos.x + 50*cos(10*t), mousePos.y + 50*sin(10*t))\n---\n<p></p>\n\n=====\n\nfuncdef test\n---\nyield (func(x) {yield mousePos})(mouseDown)\n---\n<p></p>\n";
 
 var demoProgsDataList = demoProgsData.split('\n=====\n');
 for (var i = 0; i < demoProgsDataList.length; i++) {
