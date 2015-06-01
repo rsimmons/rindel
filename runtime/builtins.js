@@ -142,6 +142,8 @@ function timeOfLatest(runtime, startTime, argStreams, outputStream, baseTopoOrde
 module.exports = {
   id: liftStep(function(a) { return a; }, 1),
   Vec2: liftStep(function(x, y) { return {x: x, y: y}; }, 2),
+  sin: liftStep(function(x) { return Math.sin(x); }, 1),
+  cos: liftStep(function(x) { return Math.cos(x); }, 1),
 
   delay1: delay1,
   timeOfLatest: timeOfLatest,

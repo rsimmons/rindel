@@ -56,3 +56,12 @@ yield Vec2(x, y)
 ---
 <p>The output position is halfway between the current mouse position and the 1-second-delayed mouse position. This type of thing would be annoying to code in regular Javascript, but is easy in this language.</p>
 
+=====
+
+time dependence
+---
+t = timeOfLatest(redraw)
+yield Vec2(mousePos.x + 50*cos(10*t), mousePos.y + 50*sin(10*t))
+---
+<p></p>
+

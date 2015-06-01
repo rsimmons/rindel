@@ -29,10 +29,11 @@ for (var i = 0; i < demoProgsDataList.length; i++) {
   demoProgsList.push(progInfo);
 }
 
-var initialDateNow = Date.now();
+var initialDateNow;
 var runtime;
 var rootLexEnv;
 var timeoutID;
+var rafID; // requestAnimationFrame
 var currentResult;
 var inputValues = {
   mouseX: 0,
@@ -41,18 +42,33 @@ var inputValues = {
 }
 var internals;
 
+function initializeMasterTime() {
+  initialDateNow = Date.now();
+}
+
 function getMasterTime() {
   return 0.001*(Date.now() - initialDateNow);
 }
 
 // "run" the runtime as necessary
 function tryRunning() {
-  if (!runtime.isRunnable()) {
+  if (!runtime.isRunnable() && !rootLexEnv.redraw.hasTriggers()) {
     return;
   }
 
   var t = getMasterTime();
+
+  rootLexEnv.redraw.emitValue(null, t);
+
   var nextTime = runtime.runToTime(t);
+
+  // if program depends on redraw input, and no outstanding call to requestAnimationFrame already, make call
+  if (rootLexEnv.redraw.hasTriggers() && !rafID) {
+    rafID = window.requestAnimationFrame(function(highResTime) {
+      rafID = null;
+      tryRunning();
+    });
+  }
 
   if (nextTime && !timeoutID) {
     timeoutID = window.setTimeout(function() {
@@ -150,6 +166,7 @@ function startCompiledProgram(mainFunc) {
     // end sanity checking
   }
 
+  initializeMasterTime();
   runtime = new Runtime();
 
   // add some "global" inputs to root lexical environment
@@ -158,6 +175,7 @@ function startCompiledProgram(mainFunc) {
     mouseY: runtime.createStepStream(inputValues.mouseY, 0),
     mousePos: runtime.createStepStream({x: inputValues.mouseX, y: inputValues.mouseY}, 0),
     mouseDown: runtime.createStepStream(inputValues.mouseDown, 0),
+    redraw: runtime.createEventStream(undefined, 0),
   });
 
   // add all builtins to root lexical environment
