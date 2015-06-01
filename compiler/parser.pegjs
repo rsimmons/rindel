@@ -65,7 +65,7 @@
  ****************************************************************************/
 
 start
-  = program
+  = function_body
 
 /*****************************************************************************
  * WHITESPACE RULES
@@ -103,6 +103,7 @@ identifier
 
 var_identifier = identifier
 
+kw_func = _ "func" _
 kw_yield = _ "yield" _
 kw_if = _ "if" _
 kw_then = _ "then" _
@@ -119,6 +120,9 @@ equal = _ "=" !"=" _
 
 open_paren = _ "(" _
 close_paren = _ ")" _
+
+open_curly = _ "{" _
+close_curly = _ "}" _
 
 dot = _ "." _
 
@@ -154,8 +158,17 @@ op_bitor = _ "|" _
  * HIGH LEVEL STRUCTURE
  ************************************/
 
-program
-  = topBody:function_body { return topBody; }
+// This returns an array of strings.
+nonempty_param_list
+  = first:var_identifier comma rest:nonempty_param_list { return [first].concat(rest); }
+  / ident:var_identifier { return [ident]; }
+
+parenth_param_list
+  = open_paren close_paren { return []; }
+  / open_paren params:nonempty_param_list close_paren { return params; }
+
+function_def
+  = kw_func params:parenth_param_list open_curly body:function_body close_curly { return {params: params, body: body}; }
 
 function_body
   = parts:function_body_part+ { return parts; }
@@ -173,7 +186,7 @@ function_body_part
 
 primary_expr
   = open_paren expr:expression close_paren { return expr; }
-  // TODO: function definition
+  / funcdef:function_def { return {type: 'literal', kind: 'funcdef', value: funcdef}; }
   / number:number { return {type: 'literal', kind: 'number', value: number}; }
   / kw_if condition:expression kw_then consequent:expression kw_else alternative:expression { return {type: 'op', op: 'ifte', args: [condition, consequent, alternative]}; }
   / ident:var_identifier { return {type: 'varIdent', ident: ident}; }

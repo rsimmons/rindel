@@ -12,6 +12,7 @@ testPrograms = [
   'yield a.b(c)',
   'yield a(b).c',
   'yield a(b).c(d)',
+  'yield func(x, y) { yield x }'
 ];
 
 for (var i = 0; i < testPrograms.length; i++) {
