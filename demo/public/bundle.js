@@ -11,6 +11,14 @@ var REF_UNRESOLVED = 1;
 var REF_RESOLVING = 2;
 var REF_RESOLVED = 3;
 
+function indentFuncExpr(code) {
+  var lines = code.trim().split('\n');
+  for (var j = 1; j < lines.length; j++) {
+    lines[j] = '  ' + lines[j];
+  }
+  return lines.join('\n');
+}
+
 // takes AST expression node and returns a 'ref' object
 function createNodesRefs(exprNode) {
   if (exprNode.type === 'op') {
@@ -241,11 +249,7 @@ function compileFunction(paramNames, bodyParts) {
         litValueExpr = node.value.toString();
       } else if (node.kind === 'function') {
         var subFuncCode = compileFunction(node.value.params, node.value.body);
-        var lines = subFuncCode.trim().split('\n');
-        for (var j = 1; j < lines.length; j++) {
-          lines[j] = '  ' + lines[j];
-        }
-        litValueExpr = lines.join('\n');
+        litValueExpr = indentFuncExpr(subFuncCode);
       } else {
         throw new Error('unexpected literal kind');
       }
@@ -298,9 +302,14 @@ function compile(sourceCode) {
   var topFuncBodyParts = parser.parse(sourceCode);
 
   // compile the top-level parts, treating them as implicitly wrapped in no-parameter "main" definition
-  var targetCode = compileFunction([], topFuncBodyParts);
+  var topFuncCode = compileFunction([], topFuncBodyParts);
 
-  return targetCode;
+  // now wrap this in another function to make a scope to define 'globals'
+  var codeFragments = [];
+  codeFragments.push('(function(runtime, startTime, argStreams, outputStream, baseTopoOrder, lexEnv) {\n');
+  codeFragments.push('  return ' + indentFuncExpr(topFuncCode) + '(runtime, startTime, argStreams, outputStream, baseTopoOrder, lexEnv);\n');
+  codeFragments.push('})');
+  return codeFragments.join('');
 }
 
 module.exports = {
