@@ -67,8 +67,11 @@ yield Vec2(mousePos.x + 50*cos(10*t), mousePos.y + 50*sin(10*t))
 
 =====
 
-funcdef test
+function definition
 ---
-yield (func(x) {yield mousePos})(mouseDown)
+delay1X = func(v) {
+  yield Vec2(delay1(v.x), v.y)
+}
+yield delay1X(mousePos)
 ---
-<p></p>
+<p>Anonymous functions can be declared with the func keyword, and bound to names like any other value. Lexical scoping allows them to access names bound in outer scopes.</p>

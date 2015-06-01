@@ -204,7 +204,7 @@ function compileFunction(paramNames, bodyParts) {
   var codeFragments = [];
 
   // this is sort of ghetto but will do for now
-  codeFragments.push('(function(runtime, startTime, argStreams, outputStream, baseTopoOrder, lexEnv) {\n');
+  codeFragments.push('(function(runtime, startTime, argStreams, outputStream, baseTopoOrder) {\n');
   codeFragments.push('  if (argStreams.length !== ' + paramNames.length + ') { throw new Error(\'called with wrong number of arguments\'); }\n');
 
   for (var i = 0; i < paramNames.length; i++) {
@@ -215,7 +215,7 @@ function compileFunction(paramNames, bodyParts) {
     if ((node.type === NODE_OP) || (node.type === NODE_LITERAL)) {
       return '$_reg' + node.topoOrder;
     } else if (node.type === NODE_LEXENV) {
-      return 'lexEnv.' + node.ident;
+      return '$_var' + node.ident;
     } else {
       throw new Error('Unexpected node type found in tree');
     }
@@ -234,7 +234,7 @@ function compileFunction(paramNames, bodyParts) {
       var opFuncName = 'runtime.opFuncs.' + node.op;
 
       // TODO: MUST zero-pad topoOrder before adding to baseTopoOrder or bad bad things will happen in larger functions
-      codeFragments.push('  var $_act' + node.topoOrder + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], null, baseTopoOrder+\'' + node.topoOrder + '\', lexEnv); var $_reg' + node.topoOrder + ' = $_act' + node.topoOrder + '.outputStream\n');
+      codeFragments.push('  var $_act' + node.topoOrder + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], null, baseTopoOrder+\'' + node.topoOrder + '\'); var $_reg' + node.topoOrder + ' = $_act' + node.topoOrder + '.outputStream\n');
 
       deactivatorCalls.push('$_act' + node.topoOrder + '.deactivator()');
     } else if (node.type === NODE_LEXENV) {
@@ -296,7 +296,7 @@ function compileFunction(paramNames, bodyParts) {
   return codeFragments.join('');
 }
 
-function compile(sourceCode) {
+function compile(sourceCode, rootLexEnvNames) {
   // parse source code, to get our top-level AST structure, which is a list of "function body parts"
   var topFuncBodyParts = parser.parse(sourceCode);
 
@@ -305,8 +305,14 @@ function compile(sourceCode) {
 
   // now wrap this in another function to make a scope to define 'globals'
   var codeFragments = [];
-  codeFragments.push('(function(runtime, startTime, argStreams, outputStream, baseTopoOrder, lexEnv) {\n');
-  codeFragments.push('  return ' + indentFuncExpr(topFuncCode) + '(runtime, startTime, argStreams, outputStream, baseTopoOrder, lexEnv);\n');
+  codeFragments.push('(function(runtime, rootLexEnv) {\n');
+
+  for (var i = 0; i < rootLexEnvNames.length; i++) {
+    var n = rootLexEnvNames[i];
+    codeFragments.push('  var $_var' + n + ' = rootLexEnv[\'' + n + '\'];\n'); // TODO: we should string-escape n here
+  }
+
+  codeFragments.push('  return ' + indentFuncExpr(topFuncCode) + '(runtime, 0, [], null, \'\');\n');
   codeFragments.push('})');
   return codeFragments.join('');
 }

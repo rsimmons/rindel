@@ -3,7 +3,7 @@
 var primUtils = require('./primUtils');
 var liftStep = primUtils.liftStep;
 
-function dynamicApplication(runtime, startTime, argStreams, outputStream, baseTopoOrder, lexEnv) {
+function dynamicApplication(runtime, startTime, argStreams, outputStream, baseTopoOrder) {
   // make closure for updating activation
   var deactivator;
   var outputStream;
@@ -24,9 +24,9 @@ function dynamicApplication(runtime, startTime, argStreams, outputStream, baseTo
     // call new activator
     var result;
     if (outputStream) {
-      result = activator(runtime, atTime, actualArgStreams, outputStream, baseTopoOrder, lexEnv);
+      result = activator(runtime, atTime, actualArgStreams, outputStream, baseTopoOrder);
     } else {
-      result = activator(runtime, atTime, actualArgStreams, null, baseTopoOrder, lexEnv);
+      result = activator(runtime, atTime, actualArgStreams, null, baseTopoOrder);
       // note that we save the outputStream from the first activator, even after it's deactivated. this seems OK
       outputStream = result.outputStream;
     }

@@ -1,7 +1,7 @@
 'use strict';
 
 function liftStep(func, arity) {
-  return function(runtime, startTime, argStreams, outputStream, baseTopoOrder, lexEnv) {
+  return function(runtime, startTime, argStreams, outputStream, baseTopoOrder) {
     if (argStreams.length !== arity) {
       throw new Error('got wrong number of arguments');
     }

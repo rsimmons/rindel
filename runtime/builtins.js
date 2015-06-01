@@ -3,7 +3,7 @@
 var primUtils = require('./primUtils');
 var liftStep = primUtils.liftStep;
 
-function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder, lexEnv) {
+function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder) {
   if (argStreams.length !== 1) {
     throw new Error('got wrong number of arguments');
   }
@@ -94,7 +94,7 @@ function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder, lex
   };
 };
 
-function timeOfLatest(runtime, startTime, argStreams, outputStream, baseTopoOrder, lexEnv) {
+function timeOfLatest(runtime, startTime, argStreams, outputStream, baseTopoOrder) {
   if (argStreams.length !== 1) {
     throw new Error('got wrong number of arguments');
   }
