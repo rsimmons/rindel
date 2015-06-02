@@ -3,7 +3,7 @@
 var primUtils = require('./primUtils');
 var liftStep = primUtils.liftStep;
 
-function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder) {
+function delay1(runtime, startTime, argStreams, baseTopoOrder, result) {
   if (argStreams.length !== 1) {
     throw new Error('got wrong number of arguments');
   }
@@ -13,14 +13,25 @@ function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder) {
   // create or validate outputStream, set initial value
   // initial output is just initial input
   var argVal = argStream.value;
-  if (outputStream) {
-    if (outputStream.tempo !== 'step') {
+  if (result) {
+    if (result.outputStream.tempo !== 'step') {
       throw new Error('Incorrect output stream tempo');
     }
-    outputStream.changeValue(argVal, startTime);
+    result.outputStream.changeValue(argVal, startTime);
   } else {
-    outputStream = runtime.createStepStream(argVal, startTime);
+    result = {
+      outputStream: runtime.createStepStream(argVal, startTime),
+      deactivator: null,
+    };
   }
+
+  if (result.deactivator) { throw new Error('Deactivator should be null'); }
+  result.deactivator = function() {
+    argStream.removeTrigger(argChangedTrigger);
+    if (pendingOutputChangeTask) {
+      runtime.priorityQueue.remove(pendingOutputChangeTask);
+    }
+  };
 
   var scheduledChanges = []; // ordered list of {time: ..., value: ...}
   var pendingOutputChangeTask = null;
@@ -55,7 +66,7 @@ function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder) {
       throw new Error('times do not match');
     }
 
-    outputStream.changeValue(nextChange.value, atTime);
+    result.outputStream.changeValue(nextChange.value, atTime);
 
     pendingOutputChangeTask = null;
     updateTasks();
@@ -83,18 +94,18 @@ function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder) {
   // add trigger on argument
   argStream.addTrigger(argChangedTrigger);
 
-  return {
-    outputStream: outputStream,
-    deactivator: function() {
-      argStream.removeTrigger(argChangedTrigger);
-      if (pendingOutputChangeTask) {
-        runtime.priorityQueue.remove(pendingOutputChangeTask);
-      }
-    },
+  // create deactivator
+  result.deactivator = function() {
+    argStream.removeTrigger(argChangedTrigger);
+    if (pendingOutputChangeTask) {
+      runtime.priorityQueue.remove(pendingOutputChangeTask);
+    }
   };
+
+  return result;
 };
 
-function timeOfLatest(runtime, startTime, argStreams, outputStream, baseTopoOrder) {
+function timeOfLatest(runtime, startTime, argStreams, baseTopoOrder, result) {
   if (argStreams.length !== 1) {
     throw new Error('got wrong number of arguments');
   }
@@ -104,19 +115,27 @@ function timeOfLatest(runtime, startTime, argStreams, outputStream, baseTopoOrde
     throw new Error('Incorrect input stream tempo');
   }
 
-  // create or validate outputStream, set initial value
-  if (outputStream) {
-    if (outputStream.tempo !== 'step') {
+  // create or validate result, set initial output value
+  if (result) {
+    if (result.outputStream.tempo !== 'step') {
       throw new Error('Incorrect output stream tempo');
     }
-    outputStream.changeValue(0, startTime);
+    result.outputStream.changeValue(0, startTime);
   } else {
-    outputStream = runtime.createStepStream(0, startTime);
+    result = {
+      outputStream: runtime.createStepStream(0, startTime),
+      deactivator: null,
+    };
   }
+
+  if (result.deactivator) { throw new Error('Deactivator should be null'); }
+  result.deactivator = function() {
+    argStream.removeTrigger(argChangedTrigger);
+  };
 
   // closure to update output value
   var argChangedTask = function(atTime) {
-    outputStream.changeValue(atTime-startTime, atTime);
+    result.outputStream.changeValue(atTime-startTime, atTime);
   };
 
   // make closure to add task when argument value changes
@@ -131,12 +150,7 @@ function timeOfLatest(runtime, startTime, argStreams, outputStream, baseTopoOrde
   // add trigger on argument
   argStream.addTrigger(argChangedTrigger);
 
-  return {
-    outputStream: outputStream,
-    deactivator: function() {
-      argStream.removeTrigger(argChangedTrigger);
-    },
-  };
+  return result;
 }
 
 module.exports = {

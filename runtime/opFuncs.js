@@ -3,17 +3,17 @@
 var primUtils = require('./primUtils');
 var liftStep = primUtils.liftStep;
 
-function dynamicApplication(runtime, startTime, argStreams, outputStream, baseTopoOrder) {
-  // make closure for updating activation
-  var deactivator;
-  var outputStream;
+function dynamicApplication(runtime, startTime, argStreams, baseTopoOrder, result) {
+  var innerResult;
   var funcStream = argStreams[0];
   var actualArgStreams = argStreams.slice(1);
 
+  // make closure for updating activation
   function updateActivator(atTime) {
     // deactivate old activation, if this isn't first time
-    if (deactivator !== undefined) {
-      deactivator();
+    if (innerResult !== undefined) {
+      innerResult.deactivator();
+      innerResult.deactivator = null;
     }
 
     // get activator function from stream
@@ -22,17 +22,12 @@ function dynamicApplication(runtime, startTime, argStreams, outputStream, baseTo
     // TODO: we could save the last activator, and check if the activator function _actually_ changed...
 
     // call new activator
-    var result;
-    if (outputStream) {
-      result = activator(runtime, atTime, actualArgStreams, outputStream, baseTopoOrder);
+    if (innerResult) {
+      activator(runtime, atTime, actualArgStreams, baseTopoOrder, innerResult);
     } else {
-      result = activator(runtime, atTime, actualArgStreams, null, baseTopoOrder);
+      innerResult = activator(runtime, atTime, actualArgStreams, baseTopoOrder, null);
       // note that we save the outputStream from the first activator, even after it's deactivated. this seems OK
-      outputStream = result.outputStream;
     }
-
-    // update current deactivator
-    deactivator = result.deactivator;
   }
 
   // do first update
@@ -42,10 +37,10 @@ function dynamicApplication(runtime, startTime, argStreams, outputStream, baseTo
   funcStream.addTrigger(updateActivator);
 
   return {
-    outputStream: outputStream,
+    outputStream: innerResult.outputStream,
     deactivator: function() {
       funcStream.removeTrigger(updateActivator);
-      deactivator();
+      innerResult.deactivator();
     },
   };
 };

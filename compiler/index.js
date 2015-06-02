@@ -204,7 +204,7 @@ function compileFunction(paramNames, bodyParts) {
   var codeFragments = [];
 
   // this is sort of ghetto but will do for now
-  codeFragments.push('(function(runtime, startTime, argStreams, outputStream, baseTopoOrder) {\n');
+  codeFragments.push('(function(runtime, startTime, argStreams, baseTopoOrder, result) {\n');
   codeFragments.push('  if (argStreams.length !== ' + paramNames.length + ') { throw new Error(\'called with wrong number of arguments\'); }\n');
 
   for (var i = 0; i < paramNames.length; i++) {
@@ -234,7 +234,7 @@ function compileFunction(paramNames, bodyParts) {
       var opFuncName = 'runtime.opFuncs.' + node.op;
 
       // TODO: MUST zero-pad topoOrder before adding to baseTopoOrder or bad bad things will happen in larger functions
-      codeFragments.push('  var $_act' + node.topoOrder + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], null, baseTopoOrder+\'' + node.topoOrder + '\'); var $_reg' + node.topoOrder + ' = $_act' + node.topoOrder + '.outputStream\n');
+      codeFragments.push('  var $_act' + node.topoOrder + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\', null); var $_reg' + node.topoOrder + ' = $_act' + node.topoOrder + '.outputStream\n');
 
       deactivatorCalls.push('$_act' + node.topoOrder + '.deactivator()');
     } else if (node.type === NODE_LEXENV) {
@@ -271,25 +271,24 @@ function compileFunction(paramNames, bodyParts) {
   // we might need to copy "inner" output to real output stream, if outputStream arg was provided
   var innerOutputExpr = getNodeStreamExpr(sortedNodes[sortedNodes.length-1]);
   codeFragments.push('  var deactivateCopyTrigger;\n');
-  codeFragments.push('  if (outputStream) {\n');
-  codeFragments.push('    deactivateCopyTrigger = runtime.addCopyTrigger(' + innerOutputExpr + ', outputStream);\n');
+  codeFragments.push('  if (result) {\n');
+  codeFragments.push('    deactivateCopyTrigger = runtime.addCopyTrigger(' + innerOutputExpr + ', result.outputStream);\n');
   codeFragments.push('  } else {\n');
-  codeFragments.push('    outputStream = ' + innerOutputExpr + ';\n');
+  codeFragments.push('    result = {outputStream: ' + innerOutputExpr + ', deactivator: null};\n');
   codeFragments.push('  }\n');
+
+  codeFragments.push('  if (result.deactivator) { throw new Error(\'deactivator should be null\'); }\n');
+
+  codeFragments.push('  result.deactivator = function() {\n');
+  codeFragments.push('    if (deactivateCopyTrigger) { deactivateCopyTrigger(); }\n');
+  for (var i = 0; i < deactivatorCalls.length; i++) {
+    codeFragments.push('    ' + deactivatorCalls[i] + ';\n');
+  }
+  codeFragments.push('  };\n');
 
   // generate return statement
   var outputStreamExpr = getNodeStreamExpr(sortedNodes[sortedNodes.length-1]);
-  codeFragments.push('  return {\n');
-  codeFragments.push('    outputStream: outputStream,\n');
-  codeFragments.push('    deactivator: function() {\n');
-
-  codeFragments.push('      if (deactivateCopyTrigger) { deactivateCopyTrigger(); }\n');
-  for (var i = 0; i < deactivatorCalls.length; i++) {
-    codeFragments.push('      ' + deactivatorCalls[i] + ';\n');
-  }
-
-  codeFragments.push('    }\n');
-  codeFragments.push('  };\n');
+  codeFragments.push('  return result;\n');
   codeFragments.push('})');
 
   // join generated code fragments and return

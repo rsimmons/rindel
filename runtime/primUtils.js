@@ -1,7 +1,7 @@
 'use strict';
 
 function liftStep(func, arity) {
-  return function(runtime, startTime, argStreams, outputStream, baseTopoOrder) {
+  return function(runtime, startTime, argStreams, baseTopoOrder, result) {
     if (argStreams.length !== arity) {
       throw new Error('got wrong number of arguments');
     }
@@ -15,19 +15,29 @@ function liftStep(func, arity) {
       return func.apply(null, argVals);
     }
 
-    // create or validate outputStream, set initial value
-    if (outputStream) {
-      if (outputStream.tempo !== 'step') {
+    // create or validate result, set initial output value
+    if (result) {
+      if (result.outputStream.tempo !== 'step') {
         throw new Error('Incorrect output stream tempo');
       }
-      outputStream.changeValue(computeOutput(), startTime);
+      result.outputStream.changeValue(computeOutput(), startTime);
     } else {
-      outputStream = runtime.createStepStream(computeOutput(), startTime);
+      result = {
+        outputStream: runtime.createStepStream(computeOutput(), startTime),
+        deactivator: null,
+      };
     }
+
+    if (result.deactivator) { throw new Error('Deactivator should be null'); }
+    result.deactivator = function() {
+      for (var i = 0; i < arity; i++) {
+        argStreams[i].removeTrigger(updateTrigger);
+      }
+    };
 
     // task closure that updates output value
     function updateTask(atTime) {
-      outputStream.changeValue(computeOutput(), atTime);
+      result.outputStream.changeValue(computeOutput(), atTime);
     };
 
     // closure that queues updateTask
@@ -44,14 +54,7 @@ function liftStep(func, arity) {
       argStreams[i].addTrigger(updateTrigger);
     }
 
-    return {
-      outputStream: outputStream,
-      deactivator: function() {
-        for (var i = 0; i < arity; i++) {
-          argStreams[i].removeTrigger(updateTrigger);
-        }
-      },
-    };
+    return result;
   };
 };
 
