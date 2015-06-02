@@ -70,6 +70,7 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
   // We'll detect if there are any "name loops", like "a = b; b = a".
   var RES_IN_PROGRESS = 1;
   var RES_COMPLETE = 2;
+  var freeVarNames = {}; // track names we reference in the outer lexical environment
   function resolveNamesRecursive(node) {
     if (node.type === 'op') {
       for (var i = 0; i < node.args.length; i++) {
@@ -96,6 +97,9 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
 
           // change the type of this node to lexEnv. 'ident' property stays unchanged
           node.type = 'lexEnv';
+          if (!paramNamesSet.hasOwnProperty(node.ident)) {
+            freeVarNames[node.ident] = null;
+          }
           return node;
         }
       } else if (node.resState === RES_IN_PROGRESS) {
@@ -221,8 +225,8 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
       } else if (node.kind === 'number') {
         litValueExpr = node.value.toString();
       } else if (node.kind === 'function') {
-        var subFuncCode = compileFunction(node.value.params, node.value.body, curLexEnvNames);
-        litValueExpr = indentFuncExpr(subFuncCode);
+        var subFuncResult = compileFunction(node.value.params, node.value.body, curLexEnvNames);
+        litValueExpr = indentFuncExpr(subFuncResult.code);
       } else {
         throw new Error('unexpected literal kind');
       }
@@ -266,7 +270,10 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
   codeFragments.push('})');
 
   // join generated code fragments and return
-  return codeFragments.join('');
+  return {
+    code: codeFragments.join(''),
+    freeVarNames: freeVarNames,
+  };
 }
 
 function compile(sourceCode, rootLexEnvNames) {
@@ -274,7 +281,7 @@ function compile(sourceCode, rootLexEnvNames) {
   var topFuncBodyParts = parser.parse(sourceCode);
 
   // compile the top-level parts, treating them as implicitly wrapped in no-parameter "main" definition
-  var topFuncCode = compileFunction([], topFuncBodyParts, rootLexEnvNames);
+  var topFuncResult = compileFunction([], topFuncBodyParts, rootLexEnvNames);
 
   // now wrap this in another function to make a scope to define 'globals'
   var codeFragments = [];
@@ -285,7 +292,7 @@ function compile(sourceCode, rootLexEnvNames) {
     codeFragments.push('  var $_' + n + ' = rootLexEnv[\'' + n + '\'];\n'); // TODO: we should string-escape n here
   }
 
-  codeFragments.push('  return ' + indentFuncExpr(topFuncCode) + '(runtime, 0, [], null, \'\');\n');
+  codeFragments.push('  return ' + indentFuncExpr(topFuncResult.code) + '(runtime, 0, [], null, \'\');\n');
   codeFragments.push('})');
   return codeFragments.join('');
 }
