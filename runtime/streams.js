@@ -37,12 +37,13 @@ TriggerSet.prototype.add = function(func) {
 TriggerSet.prototype.remove = function(func) {
   var idx;
 
+  // Remove first match. There could be more than one match, which is OK.
+  //  For example in "yield Vec2(x, x)", Vec2 would put two triggers on x.
+  //  The priority queue will make sure only one computation happens.
   for (var i = 0; i < this.funcs.length; i++) {
     if (this.funcs[i] === func) {
-      if (idx !== undefined) {
-        throw new Error('found two identical func');
-      }
       idx = i;
+      break;
     }
   }
 
