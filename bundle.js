@@ -116,19 +116,26 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
     } else if (node.type === 'literal') {
       if (node.resState === RES_COMPLETE) {
         return node;
+      } else if (node.resState === RES_IN_PROGRESS) {
+        throw new Error('Circular bindings involving function literal');
       }
+
+      node.resState = RES_IN_PROGRESS;
 
       if (node.kind === 'function') {
         var subFuncResult = compileFunction(node.value.params, node.value.body, curLexEnvNames);
         node.code = subFuncResult.code;
 
         node.freeVarNodes = [];
+        console.log('before', node.freeVarNodes);
         for (var k in subFuncResult.freeVarNames) {
+          console.log(k);
           node.freeVarNodes.push(resolveNamesRecursive({
             type: 'varIdent',
             ident: k,
           }));
         }
+        console.log('after', node.freeVarNodes);
       }
 
       node.resState = RES_COMPLETE;
@@ -145,6 +152,15 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
   yieldExpr = resolveNamesRecursive(yieldExpr);
   for (var k in localBindingExprs) {
     localBindingExprs[k] = resolveNamesRecursive(localBindingExprs[k]);
+  }
+
+  // Store bound names that resolve to a node with the node itself
+  for (var k in localBindingExprs) {
+    var n = localBindingExprs[k];
+    if (!n.localBoundNames) {
+      n.localBoundNames = [];
+    }
+    n.localBoundNames.push(k);
   }
 
   // Topological sorting to determine computation/update order
@@ -169,7 +185,14 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
     } else if (node.type === 'lexEnv') {
       // nothing to do since leaf
     } else if (node.type === 'literal') {
-      // nothing to do since leaf
+      if (node.kind === 'function') {
+        for (var i = 0; i < node.freeVarNodes.length; i++) {
+          console.log('recursive visiting free var node', node.freeVarNodes[i]);
+          toposortVisit(node.freeVarNodes[i]);
+        }
+      } else {
+        // nothing to do since leaf
+      }
     } else {
       throw new Error('Unexpected node type found during toposort');
     }
@@ -255,11 +278,13 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
     } else {
       throw new Error('Unexpected node type found in tree');
     }
-  }
 
-  // add vars for bound names
-  for (var k in localBindingExprs) {
-    codeFragments.push('  var $_' + k + ' = ' + getNodeStreamExpr(localBindingExprs[k]) + ';\n');
+    // For any local names bound to this node, emit declarations+assignments
+    if (node.localBoundNames) {
+      for (var j = 0; j < node.localBoundNames.length; j++) {
+        codeFragments.push('  var $_' + node.localBoundNames[j] + ' = ' + getNodeStreamExpr(node) + ';\n');
+      }
+    }
   }
 
   // I don't think these actually need to be reversed for things to work correctly,
