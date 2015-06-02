@@ -157,14 +157,14 @@ function compileFunction(paramNames, bodyParts) {
   codeFragments.push('  if (argStreams.length !== ' + paramNames.length + ') { throw new Error(\'called with wrong number of arguments\'); }\n');
 
   for (var i = 0; i < paramNames.length; i++) {
-    codeFragments.push('  var $_var' + paramNames[i] + ' = argStreams[' + i + '];\n');
+    codeFragments.push('  var $_' + paramNames[i] + ' = argStreams[' + i + '];\n');
   }
 
   function getNodeStreamExpr(node) {
     if ((node.type === 'op') || (node.type === 'literal')) {
-      return '$_reg' + node.topoOrder;
+      return 'reg' + node.topoOrder;
     } else if (node.type === 'lexEnv') {
-      return '$_var' + node.ident;
+      return '$_' + node.ident;
     } else {
       throw new Error('Unexpected node type found in tree');
     }
@@ -183,9 +183,9 @@ function compileFunction(paramNames, bodyParts) {
       var opFuncName = 'runtime.opFuncs.' + node.op;
 
       // TODO: MUST zero-pad topoOrder before adding to baseTopoOrder or bad bad things will happen in larger functions
-      codeFragments.push('  var $_act' + node.topoOrder + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\', null); var $_reg' + node.topoOrder + ' = $_act' + node.topoOrder + '.outputStream\n');
+      codeFragments.push('  var act' + node.topoOrder + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\', null); var reg' + node.topoOrder + ' = act' + node.topoOrder + '.outputStream\n');
 
-      deactivatorCalls.push('$_act' + node.topoOrder + '.deactivator()');
+      deactivatorCalls.push('act' + node.topoOrder + '.deactivator()');
     } else if (node.type === 'lexEnv') {
       // do nothing
     } else if (node.type === 'literal') {
@@ -202,7 +202,7 @@ function compileFunction(paramNames, bodyParts) {
         throw new Error('unexpected literal kind');
       }
 
-      codeFragments.push('  var $_reg' + node.topoOrder + ' = runtime.createConstStream(' + litValueExpr + ', startTime);\n');
+      codeFragments.push('  var reg' + node.topoOrder + ' = runtime.createConstStream(' + litValueExpr + ', startTime);\n');
     } else {
       throw new Error('Unexpected node type found in tree');
     }
@@ -210,7 +210,7 @@ function compileFunction(paramNames, bodyParts) {
 
   // add vars for bound names
   for (var k in localBindingExprs) {
-    codeFragments.push('  var $_var' + k + ' = $_reg' + localBindingExprs[k].topoOrder + ';\n');
+    codeFragments.push('  var $_' + k + ' = reg' + localBindingExprs[k].topoOrder + ';\n');
   }
 
   // I don't think these actually need to be reversed for things to work correctly,
@@ -258,7 +258,7 @@ function compile(sourceCode, rootLexEnvNames) {
 
   for (var i = 0; i < rootLexEnvNames.length; i++) {
     var n = rootLexEnvNames[i];
-    codeFragments.push('  var $_var' + n + ' = rootLexEnv[\'' + n + '\'];\n'); // TODO: we should string-escape n here
+    codeFragments.push('  var $_' + n + ' = rootLexEnv[\'' + n + '\'];\n'); // TODO: we should string-escape n here
   }
 
   codeFragments.push('  return ' + indentFuncExpr(topFuncCode) + '(runtime, 0, [], null, \'\');\n');
