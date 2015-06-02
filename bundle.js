@@ -205,7 +205,7 @@ function compileFunction(paramNames, bodyParts) {
   var codeFragments = [];
 
   // this is sort of ghetto but will do for now
-  codeFragments.push('(function(runtime, startTime, argStreams, outputStream, baseTopoOrder) {\n');
+  codeFragments.push('(function(runtime, startTime, argStreams, baseTopoOrder, result) {\n');
   codeFragments.push('  if (argStreams.length !== ' + paramNames.length + ') { throw new Error(\'called with wrong number of arguments\'); }\n');
 
   for (var i = 0; i < paramNames.length; i++) {
@@ -235,7 +235,7 @@ function compileFunction(paramNames, bodyParts) {
       var opFuncName = 'runtime.opFuncs.' + node.op;
 
       // TODO: MUST zero-pad topoOrder before adding to baseTopoOrder or bad bad things will happen in larger functions
-      codeFragments.push('  var $_act' + node.topoOrder + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], null, baseTopoOrder+\'' + node.topoOrder + '\'); var $_reg' + node.topoOrder + ' = $_act' + node.topoOrder + '.outputStream\n');
+      codeFragments.push('  var $_act' + node.topoOrder + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\', null); var $_reg' + node.topoOrder + ' = $_act' + node.topoOrder + '.outputStream\n');
 
       deactivatorCalls.push('$_act' + node.topoOrder + '.deactivator()');
     } else if (node.type === NODE_LEXENV) {
@@ -272,25 +272,24 @@ function compileFunction(paramNames, bodyParts) {
   // we might need to copy "inner" output to real output stream, if outputStream arg was provided
   var innerOutputExpr = getNodeStreamExpr(sortedNodes[sortedNodes.length-1]);
   codeFragments.push('  var deactivateCopyTrigger;\n');
-  codeFragments.push('  if (outputStream) {\n');
-  codeFragments.push('    deactivateCopyTrigger = runtime.addCopyTrigger(' + innerOutputExpr + ', outputStream);\n');
+  codeFragments.push('  if (result) {\n');
+  codeFragments.push('    deactivateCopyTrigger = runtime.addCopyTrigger(' + innerOutputExpr + ', result.outputStream);\n');
   codeFragments.push('  } else {\n');
-  codeFragments.push('    outputStream = ' + innerOutputExpr + ';\n');
+  codeFragments.push('    result = {outputStream: ' + innerOutputExpr + ', deactivator: null};\n');
   codeFragments.push('  }\n');
+
+  codeFragments.push('  if (result.deactivator) { throw new Error(\'deactivator should be null\'); }\n');
+
+  codeFragments.push('  result.deactivator = function() {\n');
+  codeFragments.push('    if (deactivateCopyTrigger) { deactivateCopyTrigger(); }\n');
+  for (var i = 0; i < deactivatorCalls.length; i++) {
+    codeFragments.push('    ' + deactivatorCalls[i] + ';\n');
+  }
+  codeFragments.push('  };\n');
 
   // generate return statement
   var outputStreamExpr = getNodeStreamExpr(sortedNodes[sortedNodes.length-1]);
-  codeFragments.push('  return {\n');
-  codeFragments.push('    outputStream: outputStream,\n');
-  codeFragments.push('    deactivator: function() {\n');
-
-  codeFragments.push('      if (deactivateCopyTrigger) { deactivateCopyTrigger(); }\n');
-  for (var i = 0; i < deactivatorCalls.length; i++) {
-    codeFragments.push('      ' + deactivatorCalls[i] + ';\n');
-  }
-
-  codeFragments.push('    }\n');
-  codeFragments.push('  };\n');
+  codeFragments.push('  return result;\n');
   codeFragments.push('})');
 
   // join generated code fragments and return
@@ -3707,7 +3706,7 @@ module.exports = (function() {
 var primUtils = require('./primUtils');
 var liftStep = primUtils.liftStep;
 
-function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder) {
+function delay1(runtime, startTime, argStreams, baseTopoOrder, result) {
   if (argStreams.length !== 1) {
     throw new Error('got wrong number of arguments');
   }
@@ -3717,14 +3716,25 @@ function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder) {
   // create or validate outputStream, set initial value
   // initial output is just initial input
   var argVal = argStream.value;
-  if (outputStream) {
-    if (outputStream.tempo !== 'step') {
+  if (result) {
+    if (result.outputStream.tempo !== 'step') {
       throw new Error('Incorrect output stream tempo');
     }
-    outputStream.changeValue(argVal, startTime);
+    result.outputStream.changeValue(argVal, startTime);
   } else {
-    outputStream = runtime.createStepStream(argVal, startTime);
+    result = {
+      outputStream: runtime.createStepStream(argVal, startTime),
+      deactivator: null,
+    };
   }
+
+  if (result.deactivator) { throw new Error('Deactivator should be null'); }
+  result.deactivator = function() {
+    argStream.removeTrigger(argChangedTrigger);
+    if (pendingOutputChangeTask) {
+      runtime.priorityQueue.remove(pendingOutputChangeTask);
+    }
+  };
 
   var scheduledChanges = []; // ordered list of {time: ..., value: ...}
   var pendingOutputChangeTask = null;
@@ -3759,7 +3769,7 @@ function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder) {
       throw new Error('times do not match');
     }
 
-    outputStream.changeValue(nextChange.value, atTime);
+    result.outputStream.changeValue(nextChange.value, atTime);
 
     pendingOutputChangeTask = null;
     updateTasks();
@@ -3787,18 +3797,18 @@ function delay1(runtime, startTime, argStreams, outputStream, baseTopoOrder) {
   // add trigger on argument
   argStream.addTrigger(argChangedTrigger);
 
-  return {
-    outputStream: outputStream,
-    deactivator: function() {
-      argStream.removeTrigger(argChangedTrigger);
-      if (pendingOutputChangeTask) {
-        runtime.priorityQueue.remove(pendingOutputChangeTask);
-      }
-    },
+  // create deactivator
+  result.deactivator = function() {
+    argStream.removeTrigger(argChangedTrigger);
+    if (pendingOutputChangeTask) {
+      runtime.priorityQueue.remove(pendingOutputChangeTask);
+    }
   };
+
+  return result;
 };
 
-function timeOfLatest(runtime, startTime, argStreams, outputStream, baseTopoOrder) {
+function timeOfLatest(runtime, startTime, argStreams, baseTopoOrder, result) {
   if (argStreams.length !== 1) {
     throw new Error('got wrong number of arguments');
   }
@@ -3808,19 +3818,27 @@ function timeOfLatest(runtime, startTime, argStreams, outputStream, baseTopoOrde
     throw new Error('Incorrect input stream tempo');
   }
 
-  // create or validate outputStream, set initial value
-  if (outputStream) {
-    if (outputStream.tempo !== 'step') {
+  // create or validate result, set initial output value
+  if (result) {
+    if (result.outputStream.tempo !== 'step') {
       throw new Error('Incorrect output stream tempo');
     }
-    outputStream.changeValue(0, startTime);
+    result.outputStream.changeValue(0, startTime);
   } else {
-    outputStream = runtime.createStepStream(0, startTime);
+    result = {
+      outputStream: runtime.createStepStream(0, startTime),
+      deactivator: null,
+    };
   }
+
+  if (result.deactivator) { throw new Error('Deactivator should be null'); }
+  result.deactivator = function() {
+    argStream.removeTrigger(argChangedTrigger);
+  };
 
   // closure to update output value
   var argChangedTask = function(atTime) {
-    outputStream.changeValue(atTime-startTime, atTime);
+    result.outputStream.changeValue(atTime-startTime, atTime);
   };
 
   // make closure to add task when argument value changes
@@ -3835,12 +3853,7 @@ function timeOfLatest(runtime, startTime, argStreams, outputStream, baseTopoOrde
   // add trigger on argument
   argStream.addTrigger(argChangedTrigger);
 
-  return {
-    outputStream: outputStream,
-    deactivator: function() {
-      argStream.removeTrigger(argChangedTrigger);
-    },
-  };
+  return result;
 }
 
 module.exports = {
@@ -4314,17 +4327,17 @@ module.exports = require('./lib/heap');
 var primUtils = require('./primUtils');
 var liftStep = primUtils.liftStep;
 
-function dynamicApplication(runtime, startTime, argStreams, outputStream, baseTopoOrder) {
-  // make closure for updating activation
-  var deactivator;
-  var outputStream;
+function dynamicApplication(runtime, startTime, argStreams, baseTopoOrder, result) {
+  var innerResult;
   var funcStream = argStreams[0];
   var actualArgStreams = argStreams.slice(1);
 
+  // make closure for updating activation
   function updateActivator(atTime) {
     // deactivate old activation, if this isn't first time
-    if (deactivator !== undefined) {
-      deactivator();
+    if (innerResult !== undefined) {
+      innerResult.deactivator();
+      innerResult.deactivator = null;
     }
 
     // get activator function from stream
@@ -4333,17 +4346,12 @@ function dynamicApplication(runtime, startTime, argStreams, outputStream, baseTo
     // TODO: we could save the last activator, and check if the activator function _actually_ changed...
 
     // call new activator
-    var result;
-    if (outputStream) {
-      result = activator(runtime, atTime, actualArgStreams, outputStream, baseTopoOrder);
+    if (innerResult) {
+      activator(runtime, atTime, actualArgStreams, baseTopoOrder, innerResult);
     } else {
-      result = activator(runtime, atTime, actualArgStreams, null, baseTopoOrder);
+      innerResult = activator(runtime, atTime, actualArgStreams, baseTopoOrder, null);
       // note that we save the outputStream from the first activator, even after it's deactivated. this seems OK
-      outputStream = result.outputStream;
     }
-
-    // update current deactivator
-    deactivator = result.deactivator;
   }
 
   // do first update
@@ -4353,10 +4361,10 @@ function dynamicApplication(runtime, startTime, argStreams, outputStream, baseTo
   funcStream.addTrigger(updateActivator);
 
   return {
-    outputStream: outputStream,
+    outputStream: innerResult.outputStream,
     deactivator: function() {
       funcStream.removeTrigger(updateActivator);
-      deactivator();
+      innerResult.deactivator();
     },
   };
 };
@@ -4487,7 +4495,7 @@ module.exports = PriorityQueue;
 'use strict';
 
 function liftStep(func, arity) {
-  return function(runtime, startTime, argStreams, outputStream, baseTopoOrder) {
+  return function(runtime, startTime, argStreams, baseTopoOrder, result) {
     if (argStreams.length !== arity) {
       throw new Error('got wrong number of arguments');
     }
@@ -4501,19 +4509,29 @@ function liftStep(func, arity) {
       return func.apply(null, argVals);
     }
 
-    // create or validate outputStream, set initial value
-    if (outputStream) {
-      if (outputStream.tempo !== 'step') {
+    // create or validate result, set initial output value
+    if (result) {
+      if (result.outputStream.tempo !== 'step') {
         throw new Error('Incorrect output stream tempo');
       }
-      outputStream.changeValue(computeOutput(), startTime);
+      result.outputStream.changeValue(computeOutput(), startTime);
     } else {
-      outputStream = runtime.createStepStream(computeOutput(), startTime);
+      result = {
+        outputStream: runtime.createStepStream(computeOutput(), startTime),
+        deactivator: null,
+      };
     }
+
+    if (result.deactivator) { throw new Error('Deactivator should be null'); }
+    result.deactivator = function() {
+      for (var i = 0; i < arity; i++) {
+        argStreams[i].removeTrigger(updateTrigger);
+      }
+    };
 
     // task closure that updates output value
     function updateTask(atTime) {
-      outputStream.changeValue(computeOutput(), atTime);
+      result.outputStream.changeValue(computeOutput(), atTime);
     };
 
     // closure that queues updateTask
@@ -4530,14 +4548,7 @@ function liftStep(func, arity) {
       argStreams[i].addTrigger(updateTrigger);
     }
 
-    return {
-      outputStream: outputStream,
-      deactivator: function() {
-        for (var i = 0; i < arity; i++) {
-          argStreams[i].removeTrigger(updateTrigger);
-        }
-      },
-    };
+    return result;
   };
 };
 
