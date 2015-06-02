@@ -306,6 +306,7 @@ function compile(sourceCode, rootLexEnvNames) {
   // now wrap this in another function to make a scope to define 'globals'
   var codeFragments = [];
   codeFragments.push('(function(runtime, rootLexEnv) {\n');
+  codeFragments.push('  \'use strict\';\n');
 
   for (var i = 0; i < rootLexEnvNames.length; i++) {
     var n = rootLexEnvNames[i];
