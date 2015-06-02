@@ -183,9 +183,9 @@ function compileAndStartProgram(code) {
     rootLexEnv[k] = runtime.createConstStream(runtime.builtins[k], 0);
   }
 
-  var rootLexEnvNames = [];
+  var rootLexEnvNames = {};
   for (var k in rootLexEnv) {
-    rootLexEnvNames.push(k);
+    rootLexEnvNames[k] = null;
   }
 
   // compile code

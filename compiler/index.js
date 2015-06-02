@@ -10,7 +10,7 @@ function indentFuncExpr(code) {
   return lines.join('\n');
 }
 
-function compileFunction(paramNames, bodyParts) {
+function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
   // derive "set" of parameter names for easy lookup
   var paramNamesSet = {};
   for (var i = 0; i < paramNames.length; i++) {
@@ -49,6 +49,21 @@ function compileFunction(paramNames, bodyParts) {
     }
   }
 
+  // Determine names of new lexical environment created by this function
+  var curLexEnvNames = {};
+  // copy outer lex env
+  for (var k in outerLexEnvNames) {
+    curLexEnvNames[k] = null;
+  }
+  // add parameters
+  for (var i = 0; i < paramNames.length; i++) {
+    curLexEnvNames[paramNames[i]] = null;
+  }
+  // add bindings
+  for (var k in localBindingExprs) {
+    curLexEnvNames[k] = null;
+  }
+
   // Name resolution
   // Return value is a (possibly) new node ref that caller should use in place of argument node ref
   // We'll detect if there are any "name loops", like "a = b; b = a".
@@ -73,7 +88,10 @@ function compileFunction(paramNames, bodyParts) {
 
           return n;
         } else {
-          // TODO: check if node.ident is actually in lexical environment(!)
+          // check if node.ident is actually in lexical environment
+          if (!curLexEnvNames.hasOwnProperty(node.ident)) {
+            throw new Error('Name not found: ' + node.ident);
+          }
 
           // change the type of this node to lexEnv. 'ident' property stays unchanged
           node.type = 'lexEnv';
@@ -195,7 +213,7 @@ function compileFunction(paramNames, bodyParts) {
       } else if (node.kind === 'number') {
         litValueExpr = node.value.toString();
       } else if (node.kind === 'function') {
-        var subFuncCode = compileFunction(node.value.params, node.value.body);
+        var subFuncCode = compileFunction(node.value.params, node.value.body, curLexEnvNames);
         litValueExpr = indentFuncExpr(subFuncCode);
       } else {
         throw new Error('unexpected literal kind');
@@ -209,7 +227,7 @@ function compileFunction(paramNames, bodyParts) {
 
   // add vars for bound names
   for (var k in localBindingExprs) {
-    codeFragments.push('  var $_' + k + ' = reg' + localBindingExprs[k].topoOrder + ';\n');
+    codeFragments.push('  var $_' + k + ' = ' + getNodeStreamExpr(localBindingExprs[k]) + ';\n');
   }
 
   // I don't think these actually need to be reversed for things to work correctly,
@@ -217,7 +235,7 @@ function compileFunction(paramNames, bodyParts) {
   deactivatorCalls.reverse();
 
   // we might need to copy "inner" output to real output stream, if outputStream arg was provided
-  var innerOutputExpr = getNodeStreamExpr(sortedNodes[sortedNodes.length-1]);
+  var innerOutputExpr = getNodeStreamExpr(yieldExpr);
   codeFragments.push('  var deactivateCopyTrigger;\n');
   codeFragments.push('  if (result) {\n');
   codeFragments.push('    deactivateCopyTrigger = runtime.addCopyTrigger(' + innerOutputExpr + ', result.outputStream);\n');
@@ -248,15 +266,14 @@ function compile(sourceCode, rootLexEnvNames) {
   var topFuncBodyParts = parser.parse(sourceCode);
 
   // compile the top-level parts, treating them as implicitly wrapped in no-parameter "main" definition
-  var topFuncCode = compileFunction([], topFuncBodyParts);
+  var topFuncCode = compileFunction([], topFuncBodyParts, rootLexEnvNames);
 
   // now wrap this in another function to make a scope to define 'globals'
   var codeFragments = [];
   codeFragments.push('(function(runtime, rootLexEnv) {\n');
   codeFragments.push('  \'use strict\';\n');
 
-  for (var i = 0; i < rootLexEnvNames.length; i++) {
-    var n = rootLexEnvNames[i];
+  for (var n in rootLexEnvNames) {
     codeFragments.push('  var $_' + n + ' = rootLexEnv[\'' + n + '\'];\n'); // TODO: we should string-escape n here
   }
 
