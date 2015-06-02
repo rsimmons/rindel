@@ -201,7 +201,7 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
       var opFuncName = 'runtime.opFuncs.' + node.op;
 
       // TODO: MUST zero-pad topoOrder before adding to baseTopoOrder or bad bad things will happen in larger functions
-      codeFragments.push('  var act' + node.topoOrder + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\', null); var reg' + node.topoOrder + ' = act' + node.topoOrder + '.outputStream\n');
+      codeFragments.push('  var act' + node.topoOrder + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\', null); var reg' + node.topoOrder + ' = act' + node.topoOrder + '.outputStream;\n');
 
       deactivatorCalls.push('act' + node.topoOrder + '.deactivator()');
     } else if (node.type === 'lexEnv') {
