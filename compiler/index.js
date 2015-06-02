@@ -268,7 +268,6 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
   codeFragments.push('  };\n');
 
   // generate return statement
-  var outputStreamExpr = getNodeStreamExpr(sortedNodes[sortedNodes.length-1]);
   codeFragments.push('  return result;\n');
   codeFragments.push('})');
 
