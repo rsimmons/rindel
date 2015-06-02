@@ -72,9 +72,13 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
   var freeVarNames = {}; // track names we reference in the outer lexical environment
   function resolveNamesRecursive(node) {
     if (node.type === 'op') {
+      if (node.resState === RES_COMPLETE) {
+        return node;
+      }
       for (var i = 0; i < node.args.length; i++) {
         node.args[i] = resolveNamesRecursive(node.args[i]);
       }
+      node.resState = RES_COMPLETE;
       return node;
     } else if (node.type === 'varIdent') {
       if (node.resState === undefined) {
