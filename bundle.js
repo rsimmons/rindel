@@ -65,7 +65,7 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
     curLexEnvNames[k] = null;
   }
 
-  // Name resolution
+  // Name resolution and function literal compilation
   // Return value is a (possibly) new node ref that caller should use in place of argument node ref
   // We'll detect if there are any "name loops", like "a = b; b = a".
   var RES_IN_PROGRESS = 1;
@@ -114,7 +114,24 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
         throw new Error('Invalid resState');
       }
     } else if (node.type === 'literal') {
-      // nothing to do
+      if (node.resState === RES_COMPLETE) {
+        return node;
+      }
+
+      if (node.kind === 'function') {
+        var subFuncResult = compileFunction(node.value.params, node.value.body, curLexEnvNames);
+        node.code = subFuncResult.code;
+
+        node.freeVarNodes = [];
+        for (var k in subFuncResult.freeVarNames) {
+          node.freeVarNodes.push(resolveNamesRecursive({
+            type: 'varIdent',
+            ident: k,
+          }));
+        }
+      }
+
+      node.resState = RES_COMPLETE;
       return node;
     } else if (node.type === 'lexEnv') {
       // nothing to do
@@ -229,8 +246,7 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
       } else if (node.kind === 'number') {
         litValueExpr = node.value.toString();
       } else if (node.kind === 'function') {
-        var subFuncResult = compileFunction(node.value.params, node.value.body, curLexEnvNames);
-        litValueExpr = indentFuncExpr(subFuncResult.code);
+        litValueExpr = indentFuncExpr(node.code);
       } else {
         throw new Error('unexpected literal kind');
       }
@@ -269,7 +285,6 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
   codeFragments.push('  };\n');
 
   // generate return statement
-  var outputStreamExpr = getNodeStreamExpr(sortedNodes[sortedNodes.length-1]);
   codeFragments.push('  return result;\n');
   codeFragments.push('})');
 
