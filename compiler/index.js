@@ -161,9 +161,17 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
     toposortVisit(localBindingExprs[k]);
   }
 
-  // Store the topographic sort order numbers on nodes themselves.
+  // We zero-pad ordering numbers to make lexicographically sortable topoOrder strings.
+  // Here we determine the resulting length of string we need to make.
+  var paddedOrderLength = (sortedNodes.length - 1).toString().length;
+  var zeroStr = Array(paddedOrderLength).join('0');
+  function padOrderNumber(n) {
+    return (zeroStr + n.toString()).slice(-paddedOrderLength);
+  }
+
+  // Store the topographic sort order strings on nodes themselves.
   for (var i = 0; i < sortedNodes.length; i++) {
-    sortedNodes[i].topoOrder = i;
+    sortedNodes[i].topoOrder = padOrderNumber(i);
   }
 
   // begin code generation
@@ -199,7 +207,6 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
 
       var opFuncName = 'runtime.opFuncs.' + node.op;
 
-      // TODO: MUST zero-pad topoOrder before adding to baseTopoOrder or bad bad things will happen in larger functions
       codeFragments.push('  var act' + node.topoOrder + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\', null); var reg' + node.topoOrder + ' = act' + node.topoOrder + '.outputStream;\n');
 
       deactivatorCalls.push('act' + node.topoOrder + '.deactivator()');
