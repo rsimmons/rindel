@@ -126,15 +126,12 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
         node.code = subFuncResult.code;
 
         node.freeVarNodes = [];
-        console.log('before', node.freeVarNodes);
         for (var k in subFuncResult.freeVarNames) {
-          console.log(k);
           node.freeVarNodes.push(resolveNamesRecursive({
             type: 'varIdent',
             ident: k,
           }));
         }
-        console.log('after', node.freeVarNodes);
       }
 
       node.resState = RES_COMPLETE;
@@ -186,7 +183,6 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
     } else if (node.type === 'literal') {
       if (node.kind === 'function') {
         for (var i = 0; i < node.freeVarNodes.length; i++) {
-          console.log('recursive visiting free var node', node.freeVarNodes[i]);
           toposortVisit(node.freeVarNodes[i]);
         }
       } else {
