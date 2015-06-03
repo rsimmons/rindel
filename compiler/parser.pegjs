@@ -98,21 +98,45 @@ number
   = _ "-"? decimal? "." decimal _ { return parseFloat(text()); }
   / _ "-"? decimal _ { return parseFloat(text()); }
 
+identifier_start
+  = [_a-z]i
+
+identifier_notstart
+  = [_a-z0-9]i
+
 identifier
-  = _ first:[_a-z]i rest:[_a-z0-9]i* _ { return first + rest.join(''); }
+  = _ !reserved_word first:identifier_start rest:identifier_notstart* _ { return first + rest.join(''); }
 
 var_identifier = identifier
 
-kw_func = _ "func" _
-kw_yield = _ "yield" _
-kw_if = _ "if" _
-kw_then = _ "then" _
-kw_else = _ "else" _
-kw_in = _ "in" _
-kw_not = _ "not" _
-kw_and = _ "and" _
-kw_xor = _ "xor" _
-kw_or = _ "or" _
+// The !identifier_notstart thing is to make sure that we don't have what appears to be a keyword
+//  but is actually the start of an identifier. E.g. the identifier "origin" starts with "or", a keyword.
+kw_func = _ "func" !identifier_notstart _
+kw_yield = _ "yield" !identifier_notstart _
+kw_if = _ "if" !identifier_notstart _
+kw_then = _ "then" !identifier_notstart _
+kw_else = _ "else" !identifier_notstart _
+kw_in = _ "in" !identifier_notstart _
+kw_not = _ "not" !identifier_notstart _
+kw_and = _ "and" !identifier_notstart _
+kw_xor = _ "xor" !identifier_notstart _
+kw_or = _ "or" !identifier_notstart _
+
+keyword
+  = kw_func
+  / kw_yield
+  / kw_if
+  / kw_then
+  / kw_else
+  / kw_in
+  / kw_not
+  / kw_and
+  / kw_xor
+  / kw_or
+
+reserved_word
+  = keyword
+  // TOOD: add null literal, boolean literal?
 
 comma = _ "," _
 
