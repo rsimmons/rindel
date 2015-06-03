@@ -78,13 +78,11 @@ yield delay1X(mousePos)
 
 =====
 
-(test) integral
+integral
 ---
-originX = 400
-originY = 400
-k = 0.5
-x = integral(k*(mousePos.x-originX), redraw) + originX
-y = integral(k*(mousePos.y-originY), redraw) + originY
-yield Vec2(x, y)
+accY = if mouseDown then 1200 else -300
+velY = integral(accY, redraw)
+y = integral(velY, redraw)
+yield Vec2(mousePos.x, 200-y)
 ---
-<p>Velocity is determined by mouse position relative to arbitrary "origin" point. Position starts at "origin", and is integral of velocity.</p>
+<p>Acceleration in Y axis is determined by whether or not mouse button is down. Velocity is integral of acceleration, position is integral of velocity.</p>
