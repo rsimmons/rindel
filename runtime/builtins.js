@@ -153,6 +153,93 @@ function timeOfLatest(runtime, startTime, argStreams, baseTopoOrder, result) {
   return result;
 }
 
+function integral(runtime, startTime, argStreams, baseTopoOrder, result) {
+  if (argStreams.length !== 2) {
+    throw new Error('got wrong number of arguments');
+  }
+
+  // split out parameters and validate their tempos
+  var integrand = argStreams[0];
+  if (integrand.tempo !== 'step') {
+    throw new Error('Argument integrand must be step');
+  }
+  var update = argStreams[1];
+  if (update.tempo !== 'event') {
+    throw new Error('Argument update must be event');
+  }
+
+  // create or validate result, set initial output value to zero
+  if (result) {
+    if (result.outputStream.tempo !== 'step') {
+      throw new Error('Incorrect output stream tempo');
+    }
+    result.outputStream.changeValue(0, startTime);
+  } else {
+    result = {
+      outputStream: runtime.createStepStream(0, startTime),
+      deactivator: null,
+    };
+  }
+
+  // here is our internal state and accumulating machinery
+  var sum = 0; // the integral up to this point
+  var lastTime = startTime; // the last time we accumulated to sum
+  var lastIntegrandVal = integrand.value; // the value of integrand at lastTime
+  function accumulate(upToTime) {
+    sum += (upToTime - lastTime)*lastIntegrandVal;
+    lastTime = upToTime;
+    lastIntegrandVal = integrand.value;
+  }
+
+  // If integrand and update inputs change at same time, it seems like it
+  //  doesn't matter which we handle first, but we'll have integrand go
+  //  first to keep things consistent.
+
+  // task for when integrand changes
+  var integrandChangedTask = function(atTime) {
+    accumulate(atTime);
+    // don't change output
+  };
+
+  // trigger for when integrand changes
+  var integrandChangedTrigger = function(atTime) {
+    runtime.priorityQueue.insert({
+      time: atTime,
+      topoOrder: baseTopoOrder+'0',
+      closure: integrandChangedTask,
+    });
+  };
+
+  // add trigger on integrand
+  integrand.addTrigger(integrandChangedTrigger);
+
+  // task for when update changes
+  var updateChangedTask = function(atTime) {
+    accumulate(atTime);
+    result.outputStream.changeValue(sum, atTime);
+  };
+
+  // trigger for when update changes
+  var updateChangedTrigger = function(atTime) {
+    runtime.priorityQueue.insert({
+      time: atTime,
+      topoOrder: baseTopoOrder+'1',
+      closure: updateChangedTask,
+    });
+  };
+
+  // add trigger on update
+  update.addTrigger(updateChangedTrigger);
+
+  if (result.deactivator) { throw new Error('Deactivator should be null'); }
+  result.deactivator = function() {
+    update.removeTrigger(updateChangedTrigger);
+    integrand.removeTrigger(integrandChangedTrigger);
+  };
+
+  return result;
+}
+
 module.exports = {
   id: liftStep(function(a) { return a; }, 1),
   Vec2: liftStep(function(x, y) { return {x: x, y: y}; }, 2),
@@ -161,4 +248,5 @@ module.exports = {
 
   delay1: delay1,
   timeOfLatest: timeOfLatest,
+  integral: integral,
 };
