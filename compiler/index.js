@@ -1,6 +1,7 @@
 'use strict';
 
 var parser = require('./parser.js');
+var errors = require('./errors.js');
 
 function indentFuncExpr(code) {
   var lines = code.trim().split('\n');
@@ -23,14 +24,14 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
     var bp = bodyParts[i];
     if (bp.type === 'yield') {
       if (yieldObj) {
-        throw new Error('Multiple yield clauses found in function body');
+        throw new errors.ParseError('Multiple yield clauses found in function body');
       }
       yieldObj = bp;
     }
   }
 
   if (!yieldObj) {
-    throw new Error('No yield clause found in function body');
+    throw new errors.ParseError('No yield clause found in function body');
   }
 
   var yieldExpr = yieldObj.expr;
@@ -40,10 +41,10 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
     var bp = bodyParts[i];
     if (bp.type === 'binding') {
       if (paramNamesSet.hasOwnProperty(bp.ident)) {
-        throw new Error('Can\'t bind name to same name as a parameter');
+        throw new errors.ParseError('Can\'t bind name to same name as a parameter');
       }
       if (localBindingExprs.hasOwnProperty(bp.ident)) {
-        throw new Error('Same name bound more than once');
+        throw new errors.ParseError('Same name bound more than once');
       }
       localBindingExprs[bp.ident] = bp.expr;
     }
@@ -95,7 +96,7 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
         } else {
           // check if node.ident is actually in lexical environment
           if (!curLexEnvNames.hasOwnProperty(node.ident)) {
-            throw new Error('Name not found: ' + node.ident);
+            throw new errors.NameResolutionError('Name "'+ node.ident + '" not found');
           }
 
           // change the type of this node to lexEnv. 'ident' property stays unchanged
@@ -106,17 +107,17 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
           return node;
         }
       } else if (node.resState === RES_IN_PROGRESS) {
-        throw new Error('Circular bindings');
+        throw new errors.CycleError('Circular name bindings');
       } else if (node.resState === RES_COMPLETE) {
         return node.resNode;
       } else {
-        throw new Error('Invalid resState');
+        throw new errors.InternalError('Invalid resState');
       }
     } else if (node.type === 'literal') {
       if (node.resState === RES_COMPLETE) {
         return node;
       } else if (node.resState === RES_IN_PROGRESS) {
-        throw new Error('Circular bindings involving function literal');
+        throw new errors.CycleError('Circular name bindings involving function literal');
       }
 
       node.resState = RES_IN_PROGRESS;
@@ -140,7 +141,7 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
       // nothing to do
       return node;
     } else {
-      throw new Error('Unexpected node type');
+      throw new errors.InternalError('Unexpected node type');
     }
   }
 
@@ -165,7 +166,7 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
   var sortedNodes = [];
   function toposortVisit(node) {
     if (node.topoState === TOPOSTATE_ENTERED) {
-      throw new Error('Cycle in computation graph, can\'t toposort');
+      throw new errors.CycleError('Cycle in computation graph found during topological sort');
     } else if (node.topoState === TOPOSTATE_ADDED) {
       // already taken care of
       return;
@@ -189,7 +190,7 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
         // nothing to do since leaf
       }
     } else {
-      throw new Error('Unexpected node type found during toposort');
+      throw new errors.InternalError('Unexpected node type found during toposort');
     }
 
     // finally, add this node to sort order and update its state
@@ -235,7 +236,7 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
     } else if (node.type === 'lexEnv') {
       return '$_' + node.ident;
     } else {
-      throw new Error('Unexpected node type found in tree');
+      throw new errors.InternalError('Unexpected node type found in tree');
     }
   }
 
@@ -266,12 +267,12 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
       } else if (node.kind === 'function') {
         litValueExpr = indentFuncExpr(node.code);
       } else {
-        throw new Error('unexpected literal kind');
+        throw new errors.InternalError('unexpected literal kind');
       }
 
       codeFragments.push('  var reg' + node.topoOrder + ' = runtime.createConstStream(' + litValueExpr + ', startTime);\n');
     } else {
-      throw new Error('Unexpected node type found in tree');
+      throw new errors.InternalError('Unexpected node type found in tree');
     }
 
     // For any local names bound to this node, emit declarations+assignments
