@@ -10,4 +10,10 @@ describe('Bindings suite:', function() {
       compile('a = b\nb = a\nyield 0');
     }).toThrowError(errors.CircularBindingError);
   });
+
+  it('Computation cycle', function() {
+    expect(function() {
+      compile('x = y + 1\ny = x\nyield 0');
+    }).toThrowError(errors.CycleError);
+  });
 });

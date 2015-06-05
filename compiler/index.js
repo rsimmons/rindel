@@ -66,11 +66,51 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
   }
 
   // Name resolution and function literal compilation
-  // Return value is a (possibly) new node ref that caller should use in place of argument node ref
-  // We'll detect if there are any "name loops", like "a = b; b = a".
   var RES_IN_PROGRESS = 1;
   var RES_COMPLETE = 2;
   var freeVarNames = {}; // track names we reference in the outer lexical environment
+
+  // Takes a varIdent node, and returns the non-varIdent node that it ultimately refers to.
+  function resolveVarIdent(node) {
+    if (node.type !== 'varIdent') {
+      throw new errors.InternalError('Expected varIdent');
+    }
+
+    if (node.resState === RES_COMPLETE) {
+      return node.resNode;
+    } else if (node.resState === RES_IN_PROGRESS) {
+      throw new errors.CircularBindingError('Circular name bindings');
+    } else if (node.resState === undefined) {
+      if (localBindingExprs.hasOwnProperty(node.ident)) {
+        var n = localBindingExprs[node.ident];
+        if (n.type === 'varIdent') {
+          node.resState = RES_IN_PROGRESS;
+          n = resolveVarIdent(n);
+        }
+
+        node.resNode = n;
+        node.resState = RES_COMPLETE;
+
+        return n;
+      } else {
+        // check if node.ident is actually in lexical environment
+        if (!curLexEnvNames.hasOwnProperty(node.ident)) {
+          throw new errors.NameResolutionError('Name "'+ node.ident + '" not found');
+        }
+
+        // change the type of this node to lexEnv. 'ident' property stays unchanged
+        node.type = 'lexEnv';
+        if (!paramNamesSet.hasOwnProperty(node.ident)) {
+          freeVarNames[node.ident] = null;
+        }
+        return node;
+      }
+    } else {
+      throw new errors.InternalError('Invalid resState');
+    }
+  }
+
+  // Return value is a (possibly) new node ref that caller should use in place of argument node ref
   function resolveNamesRecursive(node) {
     if (node.type === 'op') {
       if (node.resState === RES_COMPLETE) {
@@ -82,37 +122,7 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
       node.resState = RES_COMPLETE;
       return node;
     } else if (node.type === 'varIdent') {
-      if (node.resState === undefined) {
-        if (localBindingExprs.hasOwnProperty(node.ident)) {
-          node.resState = RES_IN_PROGRESS;
-
-          var n = localBindingExprs[node.ident];
-          n = resolveNamesRecursive(n);
-
-          node.resNode = n;
-          node.resState = RES_COMPLETE;
-
-          return n;
-        } else {
-          // check if node.ident is actually in lexical environment
-          if (!curLexEnvNames.hasOwnProperty(node.ident)) {
-            throw new errors.NameResolutionError('Name "'+ node.ident + '" not found');
-          }
-
-          // change the type of this node to lexEnv. 'ident' property stays unchanged
-          node.type = 'lexEnv';
-          if (!paramNamesSet.hasOwnProperty(node.ident)) {
-            freeVarNames[node.ident] = null;
-          }
-          return node;
-        }
-      } else if (node.resState === RES_IN_PROGRESS) {
-        throw new errors.CircularBindingError('Circular name bindings');
-      } else if (node.resState === RES_COMPLETE) {
-        return node.resNode;
-      } else {
-        throw new errors.InternalError('Invalid resState');
-      }
+      return resolveVarIdent(node);
     } else if (node.type === 'literal') {
       if (node.resState === RES_COMPLETE) {
         return node;
