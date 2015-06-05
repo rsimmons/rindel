@@ -339,4 +339,5 @@ function compile(sourceCode, rootLexEnvNames) {
 
 module.exports = {
   compile: compile,
+  errors: errors,
 };
