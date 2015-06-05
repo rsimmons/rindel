@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "genparser": "pegjs parser.pegjs parser.js",
-    "test": "jasmine"
+    "test": "jasmine ; true"
   },
   "author": "Russel Simmons <russ@rsimmons.org>",
   "license": "MIT",
