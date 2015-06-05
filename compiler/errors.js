@@ -6,6 +6,7 @@ function RindelError() {
 RindelError.prototype = Object.create(Error.prototype);
 RindelError.prototype.constructor = RindelError;
 
+// based on http://stackoverflow.com/questions/1382107/whats-a-good-way-to-extend-error-in-javascript
 function deriveErrorClass(base, name, init) {
   function E(message) {
     this.name = name;
@@ -18,6 +19,7 @@ function deriveErrorClass(base, name, init) {
     if (init) { init.apply(this, arguments); }
   }
   E.prototype = Object.create(base.prototype);
+  E.prototype.name = name;
   E.prototype.constructor = E;
   return E;
 }
