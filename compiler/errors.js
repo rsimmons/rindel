@@ -26,6 +26,8 @@ var InternalError = deriveErrorClass(RindelError, 'InternalError');
 var ParseError = deriveErrorClass(RindelError, 'ParseError');
 var NameResolutionError = deriveErrorClass(RindelError, 'NameResolutionError');
 var CycleError = deriveErrorClass(RindelError, 'CycleError');
+var DuplicateBindingError = deriveErrorClass(RindelError, 'DuplicateBindingError');
+var CircularBindingError = deriveErrorClass(RindelError, 'CircularBindingError');
 
 module.exports = {
   RindelError: RindelError,
@@ -34,4 +36,6 @@ module.exports = {
   ParseError: ParseError,
   NameResolutionError: NameResolutionError,
   CycleError: CycleError,
+  DuplicateBindingError: DuplicateBindingError,
+  CircularBindingError: CircularBindingError,
 };

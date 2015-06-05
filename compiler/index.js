@@ -41,10 +41,10 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
     var bp = bodyParts[i];
     if (bp.type === 'binding') {
       if (paramNamesSet.hasOwnProperty(bp.ident)) {
-        throw new errors.ParseError('Can\'t bind name to same name as a parameter');
+        throw new errors.DuplicateBindingError('Can\'t bind name to same name as a parameter');
       }
       if (localBindingExprs.hasOwnProperty(bp.ident)) {
-        throw new errors.ParseError('Same name bound more than once');
+        throw new errors.DuplicateBindingError('Same name bound more than once');
       }
       localBindingExprs[bp.ident] = bp.expr;
     }
@@ -107,7 +107,7 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
           return node;
         }
       } else if (node.resState === RES_IN_PROGRESS) {
-        throw new errors.CycleError('Circular name bindings');
+        throw new errors.CircularBindingError('Circular name bindings');
       } else if (node.resState === RES_COMPLETE) {
         return node.resNode;
       } else {
@@ -117,7 +117,7 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
       if (node.resState === RES_COMPLETE) {
         return node;
       } else if (node.resState === RES_IN_PROGRESS) {
-        throw new errors.CycleError('Circular name bindings involving function literal');
+        throw new errors.CircularBindingError('Circular name bindings involving function literal');
       }
 
       node.resState = RES_IN_PROGRESS;
