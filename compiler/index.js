@@ -11,15 +11,15 @@ function indentFuncExpr(code) {
   return lines.join('\n');
 }
 
-function compileFunction(params, body, outerLexEnvNames) {
+function compileFunction(func, outerLexEnvNames) {
   // derive "set" of parameter names for easy lookup
   var paramNamesSet = {};
-  for (var i = 0; i < params.length; i++) {
-    paramNamesSet[params[i].ident] = null;
+  for (var i = 0; i < func.params.length; i++) {
+    paramNamesSet[func.params[i].ident] = null;
   }
 
-  var yieldExpr = body.yield;
-  var localBindingExprs = body.bindings;
+  var yieldExpr = func.body.yield;
+  var localBindingExprs = func.body.bindings;
 
   for (var k in localBindingExprs) {
     if (paramNamesSet.hasOwnProperty(k)) {
@@ -34,8 +34,8 @@ function compileFunction(params, body, outerLexEnvNames) {
     curLexEnvNames[k] = null;
   }
   // add parameters
-  for (var i = 0; i < params.length; i++) {
-    curLexEnvNames[params[i].ident] = null;
+  for (var i = 0; i < func.params.length; i++) {
+    curLexEnvNames[func.params[i].ident] = null;
   }
   // add bindings
   for (var k in localBindingExprs) {
@@ -110,7 +110,7 @@ function compileFunction(params, body, outerLexEnvNames) {
       node.resState = RES_IN_PROGRESS;
 
       if (node.kind === 'function') {
-        var subFuncResult = compileFunction(node.value.params, node.value.body, curLexEnvNames);
+        var subFuncResult = compileFunction(node.value, curLexEnvNames);
         node.code = subFuncResult.code;
 
         node.freeVarNodes = [];
@@ -211,10 +211,10 @@ function compileFunction(params, body, outerLexEnvNames) {
 
   // this is sort of ghetto but will do for now
   codeFragments.push('(function(runtime, startTime, argStreams, baseTopoOrder, result) {\n');
-  codeFragments.push('  if (argStreams.length !== ' + params.length + ') { throw new Error(\'called with wrong number of arguments\'); }\n');
+  codeFragments.push('  if (argStreams.length !== ' + func.params.length + ') { throw new Error(\'called with wrong number of arguments\'); }\n');
 
-  for (var i = 0; i < params.length; i++) {
-    codeFragments.push('  var $_' + params[i].ident + ' = argStreams[' + i + '];\n');
+  for (var i = 0; i < func.params.length; i++) {
+    codeFragments.push('  var $_' + func.params[i].ident + ' = argStreams[' + i + '];\n');
   }
 
   function getNodeStreamExpr(node) {
@@ -315,8 +315,13 @@ function compile(sourceCode, rootLexEnvNames) {
     }
   }
 
+  var topFunc = {
+    params: [],
+    body: topFuncBody,
+  }
+
   // compile the top-level parts, treating them as implicitly wrapped in no-parameter "main" definition
-  var topFuncResult = compileFunction([], topFuncBody, rootLexEnvNames);
+  var topFuncResult = compileFunction(topFunc, rootLexEnvNames);
 
   // now wrap this in another function to make a scope to define 'globals'
   var codeFragments = [];
