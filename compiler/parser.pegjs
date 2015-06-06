@@ -9,13 +9,15 @@
  * they come with are:
  *
  * - varIdent: variable identifier. field "ident" is string
- * - literal: fields "kind" (e.g. number, string) and "value"
- * - binding: a binding of expression to name. fields "ident" string and
- *   "expr" expression
+ * - literal: fields "kind" (e.g. number, string) and "value". if kind is
+ *   function, value is a node of type "function"
  * - op: application of operator. fields are "op" string and "args" array
  *   of expressions. interpretation of "args" depends on "op" value.
  *   importantly, function application is considered an operator
- * - yield: field "expr" is expression
+ * - function: function definition. has field "params" which is an array
+ *   of nodes of type "param", and field "body", which is object containing
+ *   fields "yield" (expression) and "bindings" (map of idents to
+ *   expressions).
  *
  * An "expression" or "expression tree" is an AST (sub)tree rooted with a
  * node of type varIdent, literal, or op.
