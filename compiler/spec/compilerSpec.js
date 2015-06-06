@@ -4,7 +4,19 @@ var compiler = require('..');
 var compile = compiler.compile;
 var errors = compiler.errors;
 
-describe('Bindings suite:', function() {
+describe('Compiler suite:', function() {
+  it('Empty program', function() {
+    expect(function() {
+      compile('');
+    }).toThrowError(errors.SyntaxError);
+  });
+
+  it('Nonsense program', function() {
+    expect(function() {
+      compile('foo');
+    }).toThrowError(errors.SyntaxError);
+  });
+
   it('Circular name bindings', function() {
     expect(function() {
       compile('a = b\nb = a\nyield 0');

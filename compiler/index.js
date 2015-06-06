@@ -328,7 +328,15 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
 
 function compile(sourceCode, rootLexEnvNames) {
   // parse source code, to get our top-level AST structure, which is a list of "function body parts"
-  var topFuncBodyParts = parser.parse(sourceCode);
+  try {
+    var topFuncBodyParts = parser.parse(sourceCode);
+  } catch (e) {
+    if (e instanceof parser.SyntaxError) {
+      throw new errors.SyntaxError('At line ' + e.line + ' column ' + e.column + ': ' + e.message);
+    } else {
+      throw e;
+    }
+  }
 
   // compile the top-level parts, treating them as implicitly wrapped in no-parameter "main" definition
   var topFuncResult = compileFunction([], topFuncBodyParts, rootLexEnvNames);

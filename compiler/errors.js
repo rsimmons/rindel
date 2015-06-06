@@ -25,6 +25,7 @@ function deriveErrorClass(base, name, init) {
 }
 
 var InternalError = deriveErrorClass(RindelError, 'InternalError');
+var SyntaxError = deriveErrorClass(RindelError, 'SyntaxError');
 var ParseError = deriveErrorClass(RindelError, 'ParseError');
 var NameResolutionError = deriveErrorClass(RindelError, 'NameResolutionError');
 var CycleError = deriveErrorClass(RindelError, 'CycleError');
@@ -34,6 +35,8 @@ var CircularBindingError = deriveErrorClass(RindelError, 'CircularBindingError')
 module.exports = {
   RindelError: RindelError,
   deriveErrorClass: deriveErrorClass,
+
+  SyntaxError: SyntaxError,
   InternalError: InternalError,
   ParseError: ParseError,
   NameResolutionError: NameResolutionError,
