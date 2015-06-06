@@ -120,7 +120,7 @@ module.exports = (function() {
         peg$c85 = function() { return []; },
         peg$c86 = function(params) { return params; },
         peg$c87 = function(params, body) { return {params: params, body: body}; },
-        peg$c88 = function(parts) { return parts; },
+        peg$c88 = function(parts) { return organizeFunctionBody(parts); },
         peg$c89 = function(expr) { return {type: 'yield', expr: expr}; },
         peg$c90 = function(ident, expr) { return {type: 'binding', ident: ident, expr: expr}; },
         peg$c91 = function(expr) { return expr; },
@@ -3563,6 +3563,33 @@ module.exports = (function() {
         }
 
         return result;
+      }
+
+      function organizeFunctionBody(bodyParts) {
+        var yieldExpr;
+        var bindingExprs = {}; // map from ident to expr
+        for (var i = 0; i < bodyParts.length; i++) {
+          var bp = bodyParts[i];
+          if (bp.type === 'yield') {
+            if (yieldExpr) {
+              error('Multiple yield clauses found in function body');
+            }
+            yieldExpr = bp.expr;
+          } else if (bp.type === 'binding') {
+            if (bindingExprs.hasOwnProperty(bp.ident)) {
+              error('Bindings have name "' + bp.ident + '" bound more than once');
+            }
+            bindingExprs[bp.ident] = bp.expr;
+          } else {
+            error('Unexpected function body part');
+          }
+        }
+
+        if (!yieldExpr) {
+          error('No yield clause found in function body');
+        }
+
+        return {yield: yieldExpr, bindings: bindingExprs};
       }
 
 

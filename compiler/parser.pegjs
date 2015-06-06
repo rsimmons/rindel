@@ -56,6 +56,33 @@
 
     return result;
   }
+
+  function organizeFunctionBody(bodyParts) {
+    var yieldExpr;
+    var bindingExprs = {}; // map from ident to expr
+    for (var i = 0; i < bodyParts.length; i++) {
+      var bp = bodyParts[i];
+      if (bp.type === 'yield') {
+        if (yieldExpr) {
+          error('Multiple yield clauses found in function body');
+        }
+        yieldExpr = bp.expr;
+      } else if (bp.type === 'binding') {
+        if (bindingExprs.hasOwnProperty(bp.ident)) {
+          error('Bindings have name "' + bp.ident + '" bound more than once');
+        }
+        bindingExprs[bp.ident] = bp.expr;
+      } else {
+        error('Unexpected function body part');
+      }
+    }
+
+    if (!yieldExpr) {
+      error('No yield clause found in function body');
+    }
+
+    return {yield: yieldExpr, bindings: bindingExprs};
+  }
 }
 
 /*****************************************************************************
@@ -195,7 +222,7 @@ function_def
   = kw_func params:parenth_param_list open_curly body:function_body close_curly { return {params: params, body: body}; }
 
 function_body
-  = parts:function_body_part+ { return parts; }
+  = parts:function_body_part+ { return organizeFunctionBody(parts); }
 
 function_body_part
   = kw_yield expr:expression { return {type: 'yield', expr: expr}; }

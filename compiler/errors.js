@@ -29,7 +29,7 @@ var SyntaxError = deriveErrorClass(RindelError, 'SyntaxError');
 var ParseError = deriveErrorClass(RindelError, 'ParseError');
 var NameResolutionError = deriveErrorClass(RindelError, 'NameResolutionError');
 var CycleError = deriveErrorClass(RindelError, 'CycleError');
-var DuplicateBindingError = deriveErrorClass(RindelError, 'DuplicateBindingError');
+var RebindingError = deriveErrorClass(RindelError, 'RebindingError');
 var CircularBindingError = deriveErrorClass(RindelError, 'CircularBindingError');
 
 module.exports = {
@@ -41,6 +41,6 @@ module.exports = {
   ParseError: ParseError,
   NameResolutionError: NameResolutionError,
   CycleError: CycleError,
-  DuplicateBindingError: DuplicateBindingError,
+  RebindingError: RebindingError,
   CircularBindingError: CircularBindingError,
 };

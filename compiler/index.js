@@ -11,42 +11,19 @@ function indentFuncExpr(code) {
   return lines.join('\n');
 }
 
-function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
+function compileFunction(paramNames, body, outerLexEnvNames) {
   // derive "set" of parameter names for easy lookup
   var paramNamesSet = {};
   for (var i = 0; i < paramNames.length; i++) {
     paramNamesSet[paramNames[i]] = null;
   }
 
-  // verify that there is exactly one yield clause
-  var yieldObj;
-  for (var i = 0; i < bodyParts.length; i++) {
-    var bp = bodyParts[i];
-    if (bp.type === 'yield') {
-      if (yieldObj) {
-        throw new errors.ParseError('Multiple yield clauses found in function body');
-      }
-      yieldObj = bp;
-    }
-  }
+  var yieldExpr = body.yield;
+  var localBindingExprs = body.bindings;
 
-  if (!yieldObj) {
-    throw new errors.ParseError('No yield clause found in function body');
-  }
-
-  var yieldExpr = yieldObj.expr;
-
-  var localBindingExprs = {}; // mapping of names bound in this function to their expressions
-  for (var i = 0; i < bodyParts.length; i++) {
-    var bp = bodyParts[i];
-    if (bp.type === 'binding') {
-      if (paramNamesSet.hasOwnProperty(bp.ident)) {
-        throw new errors.DuplicateBindingError('Can\'t bind name to same name as a parameter');
-      }
-      if (localBindingExprs.hasOwnProperty(bp.ident)) {
-        throw new errors.DuplicateBindingError('Same name bound more than once');
-      }
-      localBindingExprs[bp.ident] = bp.expr;
+  for (var k in localBindingExprs) {
+    if (paramNamesSet.hasOwnProperty(k)) {
+      throw new errors.RebindingError('Can\'t bind name ' + k + ' because it\'s the name of a parameter');
     }
   }
 
@@ -329,7 +306,7 @@ function compileFunction(paramNames, bodyParts, outerLexEnvNames) {
 function compile(sourceCode, rootLexEnvNames) {
   // parse source code, to get our top-level AST structure, which is a list of "function body parts"
   try {
-    var topFuncBodyParts = parser.parse(sourceCode);
+    var topFuncBody = parser.parse(sourceCode);
   } catch (e) {
     if (e instanceof parser.SyntaxError) {
       throw new errors.SyntaxError('At line ' + e.line + ' column ' + e.column + ': ' + e.message);
@@ -339,7 +316,7 @@ function compile(sourceCode, rootLexEnvNames) {
   }
 
   // compile the top-level parts, treating them as implicitly wrapped in no-parameter "main" definition
-  var topFuncResult = compileFunction([], topFuncBodyParts, rootLexEnvNames);
+  var topFuncResult = compileFunction([], topFuncBody, rootLexEnvNames);
 
   // now wrap this in another function to make a scope to define 'globals'
   var codeFragments = [];
