@@ -83,6 +83,7 @@
 
     return {yield: yieldExpr, bindings: bindingExprs};
   }
+
 }
 
 /*****************************************************************************
@@ -209,10 +210,10 @@ op_bitor = _ "|" _
  * HIGH LEVEL STRUCTURE
  ************************************/
 
-// This returns an array of strings.
+// This returns an array of parameter objects.
 nonempty_param_list
   = first:var_identifier comma rest:nonempty_param_list { return [first].concat(rest); }
-  / ident:var_identifier { return [ident]; }
+  / ident:var_identifier { return [{type: 'param', ident: ident}]; }
 
 parenth_param_list
   = open_paren close_paren { return []; }

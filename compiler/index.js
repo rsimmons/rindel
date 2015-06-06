@@ -11,11 +11,11 @@ function indentFuncExpr(code) {
   return lines.join('\n');
 }
 
-function compileFunction(paramNames, body, outerLexEnvNames) {
+function compileFunction(params, body, outerLexEnvNames) {
   // derive "set" of parameter names for easy lookup
   var paramNamesSet = {};
-  for (var i = 0; i < paramNames.length; i++) {
-    paramNamesSet[paramNames[i]] = null;
+  for (var i = 0; i < params.length; i++) {
+    paramNamesSet[params[i].ident] = null;
   }
 
   var yieldExpr = body.yield;
@@ -34,8 +34,8 @@ function compileFunction(paramNames, body, outerLexEnvNames) {
     curLexEnvNames[k] = null;
   }
   // add parameters
-  for (var i = 0; i < paramNames.length; i++) {
-    curLexEnvNames[paramNames[i]] = null;
+  for (var i = 0; i < params.length; i++) {
+    curLexEnvNames[params[i].ident] = null;
   }
   // add bindings
   for (var k in localBindingExprs) {
@@ -211,10 +211,10 @@ function compileFunction(paramNames, body, outerLexEnvNames) {
 
   // this is sort of ghetto but will do for now
   codeFragments.push('(function(runtime, startTime, argStreams, baseTopoOrder, result) {\n');
-  codeFragments.push('  if (argStreams.length !== ' + paramNames.length + ') { throw new Error(\'called with wrong number of arguments\'); }\n');
+  codeFragments.push('  if (argStreams.length !== ' + params.length + ') { throw new Error(\'called with wrong number of arguments\'); }\n');
 
-  for (var i = 0; i < paramNames.length; i++) {
-    codeFragments.push('  var $_' + paramNames[i] + ' = argStreams[' + i + '];\n');
+  for (var i = 0; i < params.length; i++) {
+    codeFragments.push('  var $_' + params[i].ident + ' = argStreams[' + i + '];\n');
   }
 
   function getNodeStreamExpr(node) {

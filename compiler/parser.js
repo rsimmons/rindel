@@ -116,7 +116,7 @@ module.exports = (function() {
         peg$c81 = "|",
         peg$c82 = { type: "literal", value: "|", description: "\"|\"" },
         peg$c83 = function(first, rest) { return [first].concat(rest); },
-        peg$c84 = function(ident) { return [ident]; },
+        peg$c84 = function(ident) { return [{type: 'param', ident: ident}]; },
         peg$c85 = function() { return []; },
         peg$c86 = function(params) { return params; },
         peg$c87 = function(params, body) { return {params: params, body: body}; },
@@ -3591,6 +3591,7 @@ module.exports = (function() {
 
         return {yield: yieldExpr, bindings: bindingExprs};
       }
+
 
 
     peg$result = peg$startRuleFunction();
