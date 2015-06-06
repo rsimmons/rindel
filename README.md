@@ -1,6 +1,7 @@
-# temporal-splendor
-Explorations in dataflow/FRP programming
+# Rindel
 
-Check out a [demo](http://rsimmons.github.io/temporal-splendor/).
+Rindel is a functional reactive programming language that compiles to Javascript.
 
-Some explanatory notes reside on the [wiki](https://github.com/rsimmons/temporal-splendor/wiki).
+Check out a [demo](http://rsimmons.github.io/rindel/).
+
+Some explanatory notes reside on the [wiki](https://github.com/rsimmons/rindel/wiki).
