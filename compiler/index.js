@@ -304,6 +304,12 @@ function compileFunction(func, outerLexEnvNames) {
 }
 
 function compile(sourceCode, rootLexEnvNames) {
+  // put these into an arbitrary but fixed order for later use
+  var orderedRootLexEnvNames = [];
+  for (var n in rootLexEnvNames) {
+    orderedRootLexEnvNames.push(n);
+  }
+
   // parse source code, to get our top-level AST structure, which is a list of "function body parts"
   try {
     var topFuncBody = parser.parse(sourceCode);
@@ -315,24 +321,35 @@ function compile(sourceCode, rootLexEnvNames) {
     }
   }
 
+  // wrap top-level code in implicit function
   var topFunc = {
     params: [],
     body: topFuncBody,
   }
 
-  // compile the top-level parts, treating them as implicitly wrapped in no-parameter "main" definition
-  var topFuncResult = compileFunction(topFunc, rootLexEnvNames);
+  // make top-level func take all root lexenv names as arguments
+  for (var i = 0; i < orderedRootLexEnvNames.length; i++) {
+    topFunc.params.push({
+      type: 'param',
+      ident: orderedRootLexEnvNames[i],
+    });
+  }
+
+  // compile the top-level func we've constructed. it doesn't need outerLexEnvNames since we made
+  //  the root lexenv into parameters
+  var topFuncResult = compileFunction(topFunc, {});
 
   // now wrap this in another function to make a scope to define 'globals'
   var codeFragments = [];
   codeFragments.push('(function(runtime, rootLexEnv) {\n');
   codeFragments.push('  \'use strict\';\n');
+  codeFragments.push('  var topArgStreams = [];\n');
 
-  for (var n in rootLexEnvNames) {
-    codeFragments.push('  var $_' + n + ' = rootLexEnv[\'' + n + '\'];\n'); // TODO: we should string-escape n here
+  for (var i = 0; i < orderedRootLexEnvNames.length; i++) {
+    codeFragments.push('  topArgStreams.push(rootLexEnv[\'' + orderedRootLexEnvNames[i] + '\']);\n'); // TODO: string-escape properly just in case?
   }
 
-  codeFragments.push('  return ' + indentFuncExpr(topFuncResult.code) + '(runtime, 0, [], null, \'\');\n');
+  codeFragments.push('  return ' + indentFuncExpr(topFuncResult.code) + '(runtime, 0, topArgStreams, null, \'\');\n');
   codeFragments.push('})');
   return codeFragments.join('');
 }
