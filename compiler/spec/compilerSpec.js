@@ -46,4 +46,9 @@ describe('Compiler suite:', function() {
       compile('x = y + 1\ny = x\nyield 0');
     }).toThrowError(errors.CycleError);
   });
+
+  it('Inner function referring to outer binding', function() {
+    var prog = compile('a = func() { yield b + 1 }\nb = 2\nyield a()');
+    // TODO: run program and verify return value
+  });
 });

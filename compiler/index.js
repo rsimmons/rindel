@@ -3,6 +3,16 @@
 var parser = require('./parser.js');
 var errors = require('./errors.js');
 
+function Counter() {
+  this.next = 1;
+}
+
+Counter.prototype.getNext = function() {
+  var result = this.next;
+  this.next++;
+  return result;
+}
+
 function indentFuncExpr(code) {
   var lines = code.trim().split('\n');
   for (var j = 1; j < lines.length; j++) {
@@ -11,38 +21,75 @@ function indentFuncExpr(code) {
   return lines.join('\n');
 }
 
-function compileFunction(func, outerLexEnvNames) {
-  // derive "set" of parameter names for easy lookup
+// Do various bookkeeping tasks on tree.
+// - number function param nodes
+// - set containingFunction property of all (non-function) nodes
+function expandFuncRecursive(func) {
+  // set position numbers and containingFunction of param nodes
+  for (var i = 0; i < func.params.length; i++) {
+    func.params[i].position = i;
+    func.params[i].containingFunction = func;
+  }
+
+  function expandNodeRecursive(node) {
+    if (node.containingFunction) {
+      return;
+    }
+
+    node.containingFunction = func;
+
+    // Recursively expand any children.
+    if (node.type === 'op') {
+      for (var i = 0; i < node.args.length; i++) {
+        expandNodeRecursive(node.args[i]);
+      }
+    } else if (node.type === 'varIdent') {
+    } else if (node.type === 'literal') {
+      if (node.kind === 'function') {
+        expandFuncRecursive(node.value);
+      }
+    } else {
+      throw new errors.InternalError('Unexpected node type');
+    }
+  }
+
+  // Expand from all expression roots
+  expandNodeRecursive(func.body.yield);
+  for (var k in func.body.bindings) {
+    expandNodeRecursive(func.body.bindings[k]);
+  }
+}
+
+function resolveFunctionNamesRecursive(func, outerLexEnv) {
+  // number parameters and derive "set" of parameter names for easy lookup
   var paramNamesSet = {};
   for (var i = 0; i < func.params.length; i++) {
     paramNamesSet[func.params[i].ident] = null;
   }
 
-  var yieldExpr = func.body.yield;
-  var localBindingExprs = func.body.bindings;
-
-  for (var k in localBindingExprs) {
+  for (var k in func.body.bindings) {
     if (paramNamesSet.hasOwnProperty(k)) {
       throw new errors.RebindingError('Can\'t bind name ' + k + ' because it\'s the name of a parameter');
     }
   }
 
-  // Determine names of new lexical environment created by this function
-  var curLexEnvNames = {};
+  // Determine new lexical environment created by this function.
+  //  This includes parameters and bindings.
+  var curLexEnv = {};
   // copy outer lex env
-  for (var k in outerLexEnvNames) {
-    curLexEnvNames[k] = null;
+  for (var k in outerLexEnv) {
+    curLexEnv[k] = outerLexEnv[k];
   }
   // add parameters
   for (var i = 0; i < func.params.length; i++) {
-    curLexEnvNames[func.params[i].ident] = null;
+    curLexEnv[func.params[i].ident] = func.params[i];
   }
   // add bindings
-  for (var k in localBindingExprs) {
-    curLexEnvNames[k] = null;
+  for (var k in func.body.bindings) {
+    curLexEnv[k] = func.body.bindings[k];
   }
 
-  // Name resolution and function literal compilation
+  // Name resolution
   var RES_IN_PROGRESS = 1;
   var RES_COMPLETE = 2;
   var freeVarNames = {}; // track names we reference in the outer lexical environment
@@ -58,8 +105,8 @@ function compileFunction(func, outerLexEnvNames) {
     } else if (node.resState === RES_IN_PROGRESS) {
       throw new errors.CircularBindingError('Circular name bindings');
     } else if (node.resState === undefined) {
-      if (localBindingExprs.hasOwnProperty(node.ident)) {
-        var n = localBindingExprs[node.ident];
+      if (curLexEnv.hasOwnProperty(node.ident)) {
+        var n = curLexEnv[node.ident];
         if (n.type === 'varIdent') {
           node.resState = RES_IN_PROGRESS;
           n = resolveVarIdent(n);
@@ -68,19 +115,9 @@ function compileFunction(func, outerLexEnvNames) {
         node.resNode = n;
         node.resState = RES_COMPLETE;
 
-        return n;
+        return node.resNode;
       } else {
-        // check if node.ident is actually in lexical environment
-        if (!curLexEnvNames.hasOwnProperty(node.ident)) {
-          throw new errors.NameResolutionError('Name "'+ node.ident + '" not found');
-        }
-
-        // change the type of this node to lexEnv. 'ident' property stays unchanged
-        node.type = 'lexEnv';
-        if (!paramNamesSet.hasOwnProperty(node.ident)) {
-          freeVarNames[node.ident] = null;
-        }
-        return node;
+        throw new errors.NameResolutionError('Name "'+ node.ident + '" not found');
       }
     } else {
       throw new errors.InternalError('Invalid resState');
@@ -88,44 +125,42 @@ function compileFunction(func, outerLexEnvNames) {
   }
 
   // Return value is a (possibly) new node ref that caller should use in place of argument node ref
-  function resolveNamesRecursive(node) {
+  function resolveNodeNamesRecursive(node) {
     if (node.type === 'op') {
       if (node.resState === RES_COMPLETE) {
         return node;
       }
-      for (var i = 0; i < node.args.length; i++) {
-        node.args[i] = resolveNamesRecursive(node.args[i]);
-      }
+
       node.resState = RES_COMPLETE;
+
+      for (var i = 0; i < node.args.length; i++) {
+        node.args[i] = resolveNodeNamesRecursive(node.args[i]);
+      }
+
       return node;
     } else if (node.type === 'varIdent') {
-      return resolveVarIdent(node);
+      var n = resolveVarIdent(node);
+      resolveNodeNamesRecursive(n);
+      return n;
+    } else if (node.type === 'param') {
+      if (node.resState === RES_COMPLETE) {
+        return node;
+      }
+
+      node.resState = RES_COMPLETE;
+
+      return node;
     } else if (node.type === 'literal') {
       if (node.resState === RES_COMPLETE) {
         return node;
-      } else if (node.resState === RES_IN_PROGRESS) {
-        throw new errors.CircularBindingError('Circular name bindings involving function literal');
-      }
-
-      node.resState = RES_IN_PROGRESS;
-
-      if (node.kind === 'function') {
-        var subFuncResult = compileFunction(node.value, curLexEnvNames);
-        node.code = subFuncResult.code;
-
-        node.freeVarNodes = [];
-        for (var k in subFuncResult.freeVarNames) {
-          node.freeVarNodes.push(resolveNamesRecursive({
-            type: 'varIdent',
-            ident: k,
-          }));
-        }
       }
 
       node.resState = RES_COMPLETE;
-      return node;
-    } else if (node.type === 'lexEnv') {
-      // nothing to do
+
+      if (node.kind === 'function') {
+        resolveFunctionNamesRecursive(node.value, curLexEnv);
+      }
+
       return node;
     } else {
       throw new errors.InternalError('Unexpected node type');
@@ -133,24 +168,19 @@ function compileFunction(func, outerLexEnvNames) {
   }
 
   // Do name resolution from all expression roots
-  yieldExpr = resolveNamesRecursive(yieldExpr);
-  for (var k in localBindingExprs) {
-    localBindingExprs[k] = resolveNamesRecursive(localBindingExprs[k]);
+  func.body.yield = resolveNodeNamesRecursive(func.body.yield);
+  for (var k in func.body.bindings) {
+    func.body.bindings[k] = resolveNodeNamesRecursive(func.body.bindings[k]);
   }
+}
 
-  // Store bound names that resolve to a node with the node itself
-  for (var k in localBindingExprs) {
-    var n = localBindingExprs[k];
-    if (!n.localBoundNames) {
-      n.localBoundNames = [];
-    }
-    n.localBoundNames.push(k);
-  }
-
-  // Topological sorting to determine computation/update order
+// Topological sorting to determine computation/update order
+function toposortFunctionRecursive(func, counter) {
   var TOPOSTATE_ENTERED = 1; // node has been entered in traversal, but not yet added to ordering
   var TOPOSTATE_ADDED = 2; // node has been added to ordering, and is "done"
-  var sortedNodes = [];
+
+  func.sortedNodes = [];
+
   function toposortVisit(node) {
     if (node.topoState === TOPOSTATE_ENTERED) {
       throw new errors.CycleError('Cycle in computation graph found during topological sort');
@@ -161,49 +191,50 @@ function compileFunction(func, outerLexEnvNames) {
 
     node.topoState = TOPOSTATE_ENTERED;
 
+    node.uid = counter.getNext();
+
     // visit any nodes this node depends on
     if (node.type === 'op') {
       for (var i = 0; i < node.args.length; i++) {
         toposortVisit(node.args[i]);
       }
-    } else if (node.type === 'lexEnv') {
-      // nothing to do since leaf
+    } else if (node.type === 'param') {
+      // nothing to do
     } else if (node.type === 'literal') {
       if (node.kind === 'function') {
-        for (var i = 0; i < node.freeVarNodes.length; i++) {
-          toposortVisit(node.freeVarNodes[i]);
-        }
-      } else {
-        // nothing to do since leaf
+        toposortFunctionRecursive(node.value, counter);
       }
     } else {
       throw new errors.InternalError('Unexpected node type found during toposort');
     }
 
     // finally, add this node to sort order and update its state
-    sortedNodes.push(node);
+    node.containingFunction.sortedNodes.push(node);
     node.topoState = TOPOSTATE_ADDED;
   }
 
-  // Traverse from all expression roots, building sortedNodes array
-  toposortVisit(yieldExpr);
-  // NOTE: Nodes not already added to sortedNodes are not needed to compute output,
+  // Traverse from all expression roots sortedNodes arrays
+  toposortVisit(func.body.yield);
+  // NOTE: Nodes not already added to a sortedNodes array are not needed to compute output,
   //  but we might have inner functions that refer to names defined in this scope.
-  for (var k in localBindingExprs) {
-    toposortVisit(localBindingExprs[k]);
+  // TODO: pass flag to toposortVisit so these don't get computed? or don't traverse at all?
+  for (var k in func.body.bindings) {
+    toposortVisit(func.body.bindings[k]);
   }
+}
 
+function codegenFunctionRecursive(func) {
   // We zero-pad ordering numbers to make lexicographically sortable topoOrder strings.
   // Here we determine the resulting length of string we need to make.
-  var paddedOrderLength = (sortedNodes.length - 1).toString().length;
+  var paddedOrderLength = (func.sortedNodes.length - 1).toString().length;
   var zeroStr = Array(paddedOrderLength).join('0');
   function padOrderNumber(n) {
     return (zeroStr + n.toString()).slice(-paddedOrderLength);
   }
 
-  // Store the topographic sort order strings on nodes themselves.
-  for (var i = 0; i < sortedNodes.length; i++) {
-    sortedNodes[i].topoOrder = padOrderNumber(i);
+  // Store the local topographic sort order strings on nodes themselves.
+  for (var i = 0; i < func.sortedNodes.length; i++) {
+    func.sortedNodes[i].topoOrder = padOrderNumber(i);
   }
 
   // begin code generation
@@ -213,24 +244,14 @@ function compileFunction(func, outerLexEnvNames) {
   codeFragments.push('(function(runtime, startTime, argStreams, baseTopoOrder, result) {\n');
   codeFragments.push('  if (argStreams.length !== ' + func.params.length + ') { throw new Error(\'called with wrong number of arguments\'); }\n');
 
-  for (var i = 0; i < func.params.length; i++) {
-    codeFragments.push('  var $_' + func.params[i].ident + ' = argStreams[' + i + '];\n');
-  }
-
   function getNodeStreamExpr(node) {
-    if ((node.type === 'op') || (node.type === 'literal')) {
-      return 'reg' + node.topoOrder;
-    } else if (node.type === 'lexEnv') {
-      return '$_' + node.ident;
-    } else {
-      throw new errors.InternalError('Unexpected node type found in tree');
-    }
+    return 'reg' + node.uid;
   }
 
   // iterate sorted nodes, doing some code generation
   var deactivatorCalls = [];
-  for (var i = 0; i < sortedNodes.length; i++) {
-    var node = sortedNodes[i];
+  for (var i = 0; i < func.sortedNodes.length; i++) {
+    var node = func.sortedNodes[i];
     if (node.type === 'op') {
       var argStreamExprs = [];
       for (var j = 0; j < node.args.length; j++) {
@@ -239,11 +260,11 @@ function compileFunction(func, outerLexEnvNames) {
 
       var opFuncName = 'runtime.opFuncs.' + node.op;
 
-      codeFragments.push('  var act' + node.topoOrder + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\', null); var reg' + node.topoOrder + ' = act' + node.topoOrder + '.outputStream;\n');
+      codeFragments.push('  var act' + node.uid + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\', null); var ' + getNodeStreamExpr(node) + ' = act' + node.uid + '.outputStream;\n');
 
-      deactivatorCalls.push('act' + node.topoOrder + '.deactivator()');
-    } else if (node.type === 'lexEnv') {
-      // do nothing
+      deactivatorCalls.push('act' + node.uid + '.deactivator()');
+    } else if (node.type === 'param') {
+      codeFragments.push('  var ' + getNodeStreamExpr(node) + ' = argStreams[' + node.position + '];\n');
     } else if (node.type === 'literal') {
       var litValueExpr;
       if (node.kind === 'string') {
@@ -252,21 +273,14 @@ function compileFunction(func, outerLexEnvNames) {
       } else if (node.kind === 'number') {
         litValueExpr = node.value.toString();
       } else if (node.kind === 'function') {
-        litValueExpr = indentFuncExpr(node.code);
+        litValueExpr = indentFuncExpr(codegenFunctionRecursive(node.value));
       } else {
-        throw new errors.InternalError('unexpected literal kind');
+        throw new errors.InternalError('Unexpected literal kind');
       }
 
-      codeFragments.push('  var reg' + node.topoOrder + ' = runtime.createConstStream(' + litValueExpr + ', startTime);\n');
+      codeFragments.push('  var ' + getNodeStreamExpr(node) + ' = runtime.createConstStream(' + litValueExpr + ', startTime);\n');
     } else {
       throw new errors.InternalError('Unexpected node type found in tree');
-    }
-
-    // For any local names bound to this node, emit declarations+assignments
-    if (node.localBoundNames) {
-      for (var j = 0; j < node.localBoundNames.length; j++) {
-        codeFragments.push('  var $_' + node.localBoundNames[j] + ' = ' + getNodeStreamExpr(node) + ';\n');
-      }
     }
   }
 
@@ -275,7 +289,7 @@ function compileFunction(func, outerLexEnvNames) {
   deactivatorCalls.reverse();
 
   // we might need to copy "inner" output to real output stream, if outputStream arg was provided
-  var innerOutputExpr = getNodeStreamExpr(yieldExpr);
+  var innerOutputExpr = getNodeStreamExpr(func.body.yield);
   codeFragments.push('  var deactivateCopyTrigger;\n');
   codeFragments.push('  if (result) {\n');
   codeFragments.push('    deactivateCopyTrigger = runtime.addCopyTrigger(' + innerOutputExpr + ', result.outputStream);\n');
@@ -297,10 +311,7 @@ function compileFunction(func, outerLexEnvNames) {
   codeFragments.push('})');
 
   // join generated code fragments and return
-  return {
-    code: codeFragments.join(''),
-    freeVarNames: freeVarNames,
-  };
+  return codeFragments.join('');
 }
 
 function compile(sourceCode, rootLexEnvNames) {
@@ -335,11 +346,19 @@ function compile(sourceCode, rootLexEnvNames) {
     });
   }
 
-  // compile the top-level func we've constructed. it doesn't need outerLexEnvNames since we made
-  //  the root lexenv into parameters
-  var topFuncResult = compileFunction(topFunc, {});
+  // expand (do various bookkeeping)
+  expandFuncRecursive(topFunc);
 
-  // now wrap this in another function to make a scope to define 'globals'
+  // resolve names
+  resolveFunctionNamesRecursive(topFunc, {});
+
+  // toposort
+  toposortFunctionRecursive(topFunc, new Counter());
+
+  // generate code
+  var topFuncCode = codegenFunctionRecursive(topFunc);
+
+  // wrap the top-level function code in another function to break out root lexenv and put into args array
   var codeFragments = [];
   codeFragments.push('(function(runtime, rootLexEnv) {\n');
   codeFragments.push('  \'use strict\';\n');
@@ -349,7 +368,7 @@ function compile(sourceCode, rootLexEnvNames) {
     codeFragments.push('  topArgStreams.push(rootLexEnv[\'' + orderedRootLexEnvNames[i] + '\']);\n'); // TODO: string-escape properly just in case?
   }
 
-  codeFragments.push('  return ' + indentFuncExpr(topFuncResult.code) + '(runtime, 0, topArgStreams, null, \'\');\n');
+  codeFragments.push('  return ' + indentFuncExpr(topFuncCode) + '(runtime, 0, topArgStreams, null, \'\');\n');
   codeFragments.push('})');
   return codeFragments.join('');
 }
