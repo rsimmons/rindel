@@ -8,10 +8,6 @@ Like other functional reactive programming languages, Rindel lets you manipulate
 
 _Unlike_ most FRP languages, Rindel is implicitly lifted. It also uses a syntax that appears similar to imperative languages, despite being purely functional.
 
-## Examples/Demo
-
-Check out some live example programs [here](http://www.rindel-lang.org/).
-
 ## Technical Features
 
 - Declarative and purely functional - No imperative mutations. Output of a function depends solely on its inputs. Functions are free of "side-effects".
@@ -26,6 +22,10 @@ Check out some live example programs [here](http://www.rindel-lang.org/).
 - **Coming Soon** Custom syntax for switching, that resembles tail recursive calls
 - **Planned** Statically typed with type inference
 - **Planned** Optimized using [lowering transformations](http://cs.brown.edu/~sk/Publications/Papers/Published/bck-lowering-opt-trans-frp/paper.pdf)
+
+## Demo/Examples
+
+Check out some live example programs [here](http://www.rindel-lang.org/).
 
 ## Further Info
 
