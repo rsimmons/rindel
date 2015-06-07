@@ -1,6 +1,5 @@
 # Rindel
 
-## Overview
 **Warning: Rindel is not yet ready for public consumption!**
 
 Rindel is a [functional reactive programming](http://en.wikipedia.org/wiki/Functional_reactive_programming) language that compiles to Javascript.
