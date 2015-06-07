@@ -1,4 +1,4 @@
-# Rindel
+# Rindel ([Demo/Examples](http://www.rindel-lang.org/))
 
 **Warning: Rindel is not yet ready for public consumption!**
 
