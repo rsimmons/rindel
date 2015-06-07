@@ -115,7 +115,7 @@ module.exports = (function() {
         peg$c80 = { type: "literal", value: "^", description: "\"^\"" },
         peg$c81 = "|",
         peg$c82 = { type: "literal", value: "|", description: "\"|\"" },
-        peg$c83 = function(first, rest) { return [first].concat(rest); },
+        peg$c83 = function(firstIdent, rest) { return [{type: 'param', ident: firstIdent}].concat(rest); },
         peg$c84 = function(ident) { return [{type: 'param', ident: ident}]; },
         peg$c85 = function() { return []; },
         peg$c86 = function(params) { return params; },
@@ -184,7 +184,8 @@ module.exports = (function() {
         peg$c124 = function() { return 'or'; },
         peg$c125 = function(ident) { return ident; },
         peg$c126 = function(argList) { return argList; },
-        peg$c127 = function(expr) { return [expr]; },
+        peg$c127 = function(first, rest) { return [first].concat(rest); },
+        peg$c128 = function(expr) { return [expr]; },
 
         peg$currPos          = 0,
         peg$reportedPos      = 0,
@@ -3506,7 +3507,7 @@ module.exports = (function() {
           s3 = peg$parsearg_list();
           if (s3 !== peg$FAILED) {
             peg$reportedPos = s0;
-            s1 = peg$c83(s1, s3);
+            s1 = peg$c127(s1, s3);
             s0 = s1;
           } else {
             peg$currPos = s0;
@@ -3525,7 +3526,7 @@ module.exports = (function() {
         s1 = peg$parseor_expr();
         if (s1 !== peg$FAILED) {
           peg$reportedPos = s0;
-          s1 = peg$c127(s1);
+          s1 = peg$c128(s1);
         }
         s0 = s1;
       }

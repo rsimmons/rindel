@@ -214,7 +214,7 @@ op_bitor = _ "|" _
 
 // This returns an array of parameter objects.
 nonempty_param_list
-  = first:var_identifier comma rest:nonempty_param_list { return [first].concat(rest); }
+  = firstIdent:var_identifier comma rest:nonempty_param_list { return [{type: 'param', ident: firstIdent}].concat(rest); }
   / ident:var_identifier { return [{type: 'param', ident: ident}]; }
 
 parenth_param_list
