@@ -3,7 +3,7 @@
 var errors = require('./errors.js');
 
 // Topological sorting to determine computation/update order
-function toposortFunctionRecursive(func, counter) {
+function toposortFunctionRecursive(func, uidCounter) {
   var TOPOSTATE_ENTERED = 1; // node has been entered in traversal, but not yet added to ordering
   var TOPOSTATE_ADDED = 2; // node has been added to ordering, and is "done"
 
@@ -19,7 +19,7 @@ function toposortFunctionRecursive(func, counter) {
 
     node.topoState = TOPOSTATE_ENTERED;
 
-    node.uid = counter.getNext();
+    node.uid = uidCounter.getNext();
 
     // visit any nodes this node depends on
     if (node.type === 'op') {
@@ -30,7 +30,7 @@ function toposortFunctionRecursive(func, counter) {
       // nothing to do
     } else if (node.type === 'literal') {
       if (node.kind === 'function') {
-        toposortFunctionRecursive(node.value, counter);
+        toposortFunctionRecursive(node.value, uidCounter);
       }
     } else {
       throw new errors.InternalError('Unexpected node type found during toposort');
