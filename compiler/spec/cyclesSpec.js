@@ -36,7 +36,7 @@ describe('Cycles suite:', function() {
   });
 
   it('Inner function referring to outer binding', function() {
-    var prog = compile('x = y()\ny = func() { yield z }\nz = 5\nyield x');
+    var prog = compile('x = y()\ny = func() { yield z + 1 }\nz = 5\nyield x');
     // TODO: run program and verify return value
   });
 
@@ -56,6 +56,32 @@ describe('Cycles suite:', function() {
     expect(function() {
       compile('f = func() { yield 1 + x }\ng = if 0 then f else f\nx = g()\nyield x');
     }).toThrowError(errors.CycleError);
+  });
+
+  it('Application depth test, depth 0', function() {
+    compile('f = func() { yield g }\ng = func() { yield h }\nh = func() { yield x }\nx = f\nyield x');
+    // should compile fine
+  });
+
+  it('Application depth test, depth 1', function() {
+    compile('f = func() { yield g }\ng = func() { yield h }\nh = func() { yield x }\nx = f()\nyield x');
+    // should compile fine
+  });
+
+  it('Application depth test, depth 2', function() {
+    compile('f = func() { yield g }\ng = func() { yield h }\nh = func() { yield x }\nx = f()()\nyield x');
+    // should compile fine
+  });
+
+  it('Application depth test, depth 3', function() {
+    expect(function() {
+      compile('f = func() { yield g }\ng = func() { yield h }\nh = func() { yield x }\nx = f()()()\nyield x');
+    }).toThrowError(errors.CycleError);
+  });
+
+  it('Closure-esque test', function() {
+    var prog = compile('makeAdder = func(y) { yield func(x) { yield x + y } }\nadd10 = makeAdder(10)\nyield add10(1)');
+    // TOOD: run program and verify that return value is 11
   });
 
   it('Non-terminating recursive function', function() {
