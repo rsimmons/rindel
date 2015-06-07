@@ -85,14 +85,12 @@ describe('Cycles suite:', function() {
   });
 
   it('Non-terminating recursive function', function() {
-    // pending('Compiler does not yet allow recursive definitions, thinks they are cycles. This one should compile, but throw RangeError on running.');
-    var program = compile('f = func(x) { yield 1 + f(x) }\nyield f(0)');
+    var prog = compile('f = func(x) { yield 1 + f(x) }\nyield f(0)');
     // TODO: expect to throw RangeError when run
   });
 
   it('Factorial function', function() {
-    // pending('Compiler does not yet allow recursive definitions, thinks they are cycles');
     var prog = compile('factorial = func(n) { yield if n == 1 then 1 else n*factorial(n-1) }\nyield factorial(5)');
-    // TODO: run program and verify return value
+    // TODO: expect to throw RangeError when run. this doesn't actually terminate, because if-then-else always constructs its "else" clause
   });
 });
