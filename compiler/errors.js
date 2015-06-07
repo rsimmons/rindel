@@ -31,6 +31,7 @@ var NameResolutionError = deriveErrorClass(RindelError, 'NameResolutionError');
 var CycleError = deriveErrorClass(RindelError, 'CycleError');
 var RebindingError = deriveErrorClass(RindelError, 'RebindingError');
 var CircularBindingError = deriveErrorClass(RindelError, 'CircularBindingError');
+var TypeError = deriveErrorClass(RindelError, 'TypeError');
 
 module.exports = {
   RindelError: RindelError,
@@ -43,4 +44,5 @@ module.exports = {
   CycleError: CycleError,
   RebindingError: RebindingError,
   CircularBindingError: CircularBindingError,
+  TypeError: TypeError,
 };

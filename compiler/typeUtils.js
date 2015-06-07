@@ -67,7 +67,20 @@ function unifyTypes(a, b) {
   } else if (b.tag === 'variable') {
     assignVariableType(b, a);
   } else {
-    throw new errors.InternalError('Can\'t unify yet');
+    if ((a.tag === 'number') && (b.tag === 'number')) {
+      // nothing to do
+    } else if ((a.tag === 'function') && (b.tag === 'function')) {
+      // unify child types
+      if (a.fields.params.length != b.fields.params.length) {
+        throw new errors.TypeError('Types ' + a + ' and ' + b + ' can\'t be unified, mismatching number of params');
+      }
+      for (var i = 0; i < a.fields.params.length; i++) {
+        unifyTypes(a.fields.params[i], b.fields.params[i]);
+      }
+      unifyTypes(a.fields.yield, b.fields.yield);
+    } else {
+      throw new errors.TypeError('Types ' + a + ' and ' + b + ' can\'t be unified');
+    }
   }
 }
 
