@@ -10,7 +10,7 @@ _Unlike_ most FRP languages, Rindel is implicitly lifted. It also uses a syntax 
 
 ## Technical Features
 
-- Declarative and purely functional - No imperative mutations. Output of a function depends solely on its inputs. Functions are free of "side-effects".
+- Declarative and [purely functional](http://en.wikipedia.org/wiki/Purely_functional) - No imperative mutations. Output of a function depends solely on its inputs. Functions are free of "side-effects".
 - Implicitly lifted - All expressions are automatically lifted into the time domain
 - Imperative-style syntax for function application - E.g. `f(a,b)`, not `f a b`
 - _Not_ an embedded language of a normal functional language
