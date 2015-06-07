@@ -51,4 +51,22 @@ describe('Compiler suite:', function() {
     var prog = compile('a = func() { yield b + 1 }\nb = 2\nyield a()');
     // TODO: run program and verify return value
   });
+
+  it('Computation cycle involving function def', function() {
+    expect(function() {
+      compile('x = (func() { yield x })()\nyield x');
+    }).toThrowError(errors.CycleError);
+  });
+
+  it('Non-terminating recursive function', function() {
+    pending('Compiler does not yet allow recursive definitions, thinks they are cycles. This one should compile, but throw RangeError on running.');
+    var program = compile('f = (func(x) { yield f(x) })\nyield f(0)');
+    // TODO: expect to throw RangeError when run
+  });
+
+  it('Factorial function', function() {
+    pending('Compiler does not yet allow recursive definitions, thinks they are cycles');
+    var prog = compile('factorial = func(n) { yield if n == 1 then 1 else n*factorial(n-1) }\nyield factorial(5)');
+    // TODO: run program and verify return value
+  });
 });
