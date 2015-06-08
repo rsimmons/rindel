@@ -44,4 +44,21 @@ describe('Cycles suite:', function() {
       compile('x = true\nyield if (if x then 5 else 6) then 3 else 4');
     }).toThrowError(errors.TypeError);
   });
+
+  it('Comparison works fine', function() {
+    compile('yield if (1 < 2) then 3 else 4');
+    // TODO: check output
+  });
+
+  it('Comparison sides must be same type', function() {
+    expect(function() {
+      compile('yield true == 2');
+    }).toThrowError(errors.TypeError);
+  });
+
+  it('Comparison result can\'t be number', function() {
+    expect(function() {
+      compile('yield (1 < 2) + 3');
+    }).toThrowError(errors.TypeError);
+  });
 });

@@ -28,6 +28,15 @@ var BOOLEAN_OPS = {
   or: null,
 }
 
+var COMPARISON_OPS = {
+  lt: null,
+  lte: null,
+  gt: null,
+  gte: null,
+  eq: null,
+  neq: null,
+}
+
 function initializeFuncTypesRecursive(func) {
   if (func.inferredType) {
     return;
@@ -119,6 +128,10 @@ function typeFuncRecursive(func) {
         for (var i = 0; i < node.args.length; i++) {
           typeUtils.unifyTypes(node.args[i].inferredType, typeUtils.BOOLEAN);
         }
+      } else if (COMPARISON_OPS.hasOwnProperty(node.op)) {
+        typeUtils.unifyTypes(node.inferredType, typeUtils.BOOLEAN);
+        typeUtils.unifyTypes(node.args[0].inferredType, node.args[1].inferredType);
+        // TODO: We ensure that left and right are of same type, but nothing about what those types might be
       } else if (node.op === 'ifte') {
         typeUtils.unifyTypes(node.args[0].inferredType, typeUtils.BOOLEAN);
         typeUtils.unifyTypes(node.args[1].inferredType, node.args[2].inferredType);
