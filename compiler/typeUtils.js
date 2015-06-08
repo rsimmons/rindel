@@ -109,10 +109,10 @@ function unifyTypes(a, b) {
 }
 
 module.exports = {
-  createBooleanType: createBooleanType,
-  createNumberType: createNumberType,
-  createStringType: createStringType,
   createFunctionType: createFunctionType,
   createVariableType: createVariableType,
   unifyTypes: unifyTypes,
+  BOOLEAN: createBooleanType(),
+  NUMBER: createNumberType(),
+  STRING: createStringType(),
 }

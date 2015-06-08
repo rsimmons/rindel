@@ -3,6 +3,31 @@
 var errors = require('./errors.js');
 var typeUtils = require('./typeUtils.js');
 
+// These ops take numbers as arguments and return a number.
+var NUMERIC_OPS = {
+  uplus: null,
+  uminus: null,
+  bitnot: null,
+  mul: null,
+  div: null,
+  add: null,
+  sub: null,
+  lshift: null,
+  srshift: null,
+  zrshift: null,
+  bitand: null,
+  bitxor: null,
+  bitor: null,
+}
+
+// These ops take booleans as arguments and return a boolean.
+var BOOLEAN_OPS = {
+  not: null,
+  and: null,
+  xor: null,
+  or: null,
+}
+
 function typeFuncRecursive(func) {
   if (func.typeChecked) {
     return;
@@ -31,10 +56,24 @@ function typeFuncRecursive(func) {
         var expectedYieldType = node.inferredType;
         var expectedFuncType = typeUtils.createFunctionType(argTypes, expectedYieldType);
         typeUtils.unifyTypes(expectedFuncType, node.args[0].inferredType);
+      } else if (NUMERIC_OPS.hasOwnProperty(node.op)) {
+        typeUtils.unifyTypes(node.inferredType, typeUtils.NUMBER);
+        for (var i = 0; i < node.args.length; i++) {
+          typeUtils.unifyTypes(node.args[i].inferredType, typeUtils.NUMBER);
+        }
+      } else if (BOOLEAN_OPS.hasOwnProperty(node.op)) {
+        typeUtils.unifyTypes(node.inferredType, typeUtils.BOOLEAN);
+        for (var i = 0; i < node.args.length; i++) {
+          typeUtils.unifyTypes(node.args[i].inferredType, typeUtils.BOOLEAN);
+        }
       } else if (node.op === 'ifte') {
-        typeUtils.unifyTypes(node.args[0].inferredType, typeUtils.createBooleanType());
+        typeUtils.unifyTypes(node.args[0].inferredType, typeUtils.BOOLEAN);
         typeUtils.unifyTypes(node.args[1].inferredType, node.args[2].inferredType);
         typeUtils.unifyTypes(node.inferredType, node.args[1].inferredType);
+      } else if (node.op === 'prop') {
+        // TODO: implement
+      } else if (node.op === 'in') {
+        // TODO: implement
       } else {
         // TODO: implement
       }
@@ -88,11 +127,11 @@ function initializeFuncTypesRecursive(func) {
         initializeFuncTypesRecursive(node.value);
         node.inferredType = node.value.inferredType;
       } else if (node.kind === 'boolean') {
-        node.inferredType = typeUtils.createBooleanType();
+        node.inferredType = typeUtils.BOOLEAN;
       } else if (node.kind === 'number') {
-        node.inferredType = typeUtils.createNumberType();
+        node.inferredType = typeUtils.NUMBER;
       } else if (node.kind === 'string') {
-        node.inferredType = typeUtils.createStringType();
+        node.inferredType = typeUtils.STRING;
       } else {
         throw new errors.InternalError('Unexpected literal kind');
       }
