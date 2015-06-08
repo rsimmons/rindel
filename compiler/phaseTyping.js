@@ -4,10 +4,35 @@ var errors = require('./errors.js');
 var typeUtils = require('./typeUtils.js');
 
 function typeFuncRecursive(func) {
+  if (func.typeChecked) {
+    return;
+  }
+  func.typeChecked = true;
+
   function typeNodeRecursive(node) {
-    // Recursively type any children.
+    if (node.typeChecked) {
+      return;
+    }
+    node.typeChecked = true;
+
+    // Type this node and recursively type any children.
     if (node.type === 'op') {
+      // Type any children.
       for (var i = 0; i < node.args.length; i++) {
+        typeNodeRecursive(node.args[i]);
+      }
+
+      // Unify this node type and argument types in some way, based on operation.
+      if (node.op === 'app') {
+        var argTypes = [];
+        for (var i = 1; i < node.args.length; i++) {
+          argTypes.push(node.args[i].inferredType);
+        }
+        var expectedYieldType = node.inferredType;
+        var expectedFuncType = typeUtils.createFunctionType(argTypes, expectedYieldType);
+        typeUtils.unifyTypes(expectedFuncType, node.args[0].inferredType);
+      } else {
+        // TODO: implement
       }
     } else if (node.type === 'param') {
     } else if (node.type === 'literal') {
@@ -33,7 +58,9 @@ function initializeFuncTypesRecursive(func) {
 
   var paramTypes = [];
   for (var i = 0; i < func.params.length; i++) {
-    paramTypes.push(typeUtils.createVariableType());
+    var pt = typeUtils.createVariableType();
+    func.params[i].inferredType = pt;
+    paramTypes.push(pt);
   }
   var yieldType = typeUtils.createVariableType();
   func.inferredType = typeUtils.createFunctionType(paramTypes, yieldType);
@@ -50,7 +77,8 @@ function initializeFuncTypesRecursive(func) {
         initializeNodeTypesRecursive(node.args[i]);
       }
     } else if (node.type === 'param') {
-      node.inferredType = typeUtils.createVariableType();
+      // params are given types when their function is traversed to
+      throw new error.InternalError('Should not have gotten here');
     } else if (node.type === 'literal') {
       if (node.kind === 'function') {
         initializeFuncTypesRecursive(node.value);
@@ -76,7 +104,7 @@ function initializeFuncTypesRecursive(func) {
 
 function typeProgram(topFunc) {
   initializeFuncTypesRecursive(topFunc);
-  // typeFuncRecursive(topFunc);
+  typeFuncRecursive(topFunc);
 }
 
 module.exports = typeProgram;

@@ -47,7 +47,12 @@ function createVariableType() {
 
 function assignVariableType(targetType, sourceType) {
   if (targetType.tag !== 'variable') {
-    throw new errors.InternalError('Unexpected tag');
+    throw new errors.InternalError('Can only assign to variable type');
+  }
+
+  if ((sourceType.tag === 'variable') && (targetType.fields.uid === sourceType.fields.uid)) {
+    // already the same, don't need to do anything
+    return;
   }
 
   var targetUid = targetType.fields.uid;
