@@ -4,6 +4,7 @@ var parser = require('./parser.js');
 var errors = require('./errors.js');
 var phaseExpand = require('./phaseExpand.js');
 var phaseResolveNames = require('./phaseResolveNames.js');
+var phaseTyping = require('./phaseTyping.js');
 var phaseToposort = require('./phaseToposort.js');
 var phaseCodegen = require('./phaseCodegen.js');
 var util = require('./util.js');
@@ -45,6 +46,9 @@ function compile(sourceCode, rootLexEnvNames) {
 
   // resolve names
   phaseResolveNames(topFunc);
+
+  // infer and check types
+  phaseTyping(topFunc);
 
   // toposort
   phaseToposort(topFunc);

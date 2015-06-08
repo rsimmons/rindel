@@ -4,9 +4,17 @@ var errors = require('./errors.js');
 
 // Note: We use tags instead of classes because we need to modify the tags
 //  of types in-place during unification ("union-find" style algorithm).
+
 function createNumberType() {
   return {
     tag: 'number',
+    fields: null,
+  };
+}
+
+function createStringType() {
+  return {
+    tag: 'string',
     fields: null,
   };
 }
@@ -69,6 +77,8 @@ function unifyTypes(a, b) {
   } else {
     if ((a.tag === 'number') && (b.tag === 'number')) {
       // nothing to do
+    } else if ((a.tag === 'string') && (b.tag === 'string')) {
+      // nothing to do
     } else if ((a.tag === 'function') && (b.tag === 'function')) {
       // unify child types
       if (a.fields.params.length != b.fields.params.length) {
@@ -86,6 +96,7 @@ function unifyTypes(a, b) {
 
 module.exports = {
   createNumberType: createNumberType,
+  createStringType: createStringType,
   createFunctionType: createFunctionType,
   createVariableType: createVariableType,
   unifyTypes: unifyTypes,
