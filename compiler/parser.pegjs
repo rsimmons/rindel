@@ -151,6 +151,8 @@ kw_not = _ "not" !identifier_notstart _
 kw_and = _ "and" !identifier_notstart _
 kw_xor = _ "xor" !identifier_notstart _
 kw_or = _ "or" !identifier_notstart _
+kw_true = _ "true" !identifier_notstart _
+kw_false = _ "false" !identifier_notstart _
 
 keyword
   = kw_func
@@ -163,6 +165,8 @@ keyword
   / kw_and
   / kw_xor
   / kw_or
+  / kw_true
+  / kw_false
 
 reserved_word
   = keyword
@@ -241,6 +245,8 @@ function_body_part
 primary_expr
   = open_paren expr:expression close_paren { return expr; }
   / funcdef:function_def { return {type: 'literal', kind: 'function', value: funcdef}; }
+  / kw_true { return {type: 'literal', kind: 'boolean', value: true}; }
+  / kw_false { return {type: 'literal', kind: 'boolean', value: false}; }
   / number:number { return {type: 'literal', kind: 'number', value: number}; }
   / kw_if condition:expression kw_then consequent:expression kw_else alternative:expression { return {type: 'op', op: 'ifte', args: [condition, consequent, alternative]}; }
   / ident:var_identifier { return {type: 'varIdent', ident: ident}; }

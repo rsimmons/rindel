@@ -50,6 +50,8 @@ function codegenFunctionRecursive(func) {
       if (node.kind === 'string') {
         // TODO: we might want to call a proper repr()-style escape on the value, but it should only be safe characters anyways
         litValueExpr = '\'' + node.value + '\'';
+      } else if (node.kind === 'boolean') {
+        litValueExpr = node.value.toString();
       } else if (node.kind === 'number') {
         litValueExpr = node.value.toString();
       } else if (node.kind === 'function') {

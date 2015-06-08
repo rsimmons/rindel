@@ -83,6 +83,8 @@ function initializeFuncTypesRecursive(func) {
       if (node.kind === 'function') {
         initializeFuncTypesRecursive(node.value);
         node.inferredType = node.value.inferredType;
+      } else if (node.kind === 'boolean') {
+        node.inferredType = typeUtils.createBooleanType();
       } else if (node.kind === 'number') {
         node.inferredType = typeUtils.createNumberType();
       } else if (node.kind === 'string') {
