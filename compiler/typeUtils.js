@@ -5,6 +5,13 @@ var errors = require('./errors.js');
 // Note: We use tags instead of classes because we need to modify the tags
 //  of types in-place during unification ("union-find" style algorithm).
 
+function createBooleanType() {
+  return {
+    tag: 'boolean',
+    fields: null,
+  };
+}
+
 function createNumberType() {
   return {
     tag: 'number',
@@ -80,7 +87,9 @@ function unifyTypes(a, b) {
   } else if (b.tag === 'variable') {
     assignVariableType(b, a);
   } else {
-    if ((a.tag === 'number') && (b.tag === 'number')) {
+    if ((a.tag === 'boolean') && (b.tag === 'boolean')) {
+      // nothing to do
+    } else if ((a.tag === 'number') && (b.tag === 'number')) {
       // nothing to do
     } else if ((a.tag === 'string') && (b.tag === 'string')) {
       // nothing to do
@@ -100,6 +109,7 @@ function unifyTypes(a, b) {
 }
 
 module.exports = {
+  createBooleanType: createBooleanType,
   createNumberType: createNumberType,
   createStringType: createStringType,
   createFunctionType: createFunctionType,
