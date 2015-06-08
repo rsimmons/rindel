@@ -78,7 +78,7 @@ function initializeFuncTypesRecursive(func) {
       }
     } else if (node.type === 'param') {
       // params are given types when their function is traversed to
-      throw new error.InternalError('Should not have gotten here');
+      throw new errors.InternalError('Should not have gotten here');
     } else if (node.type === 'literal') {
       if (node.kind === 'function') {
         initializeFuncTypesRecursive(node.value);
@@ -88,7 +88,7 @@ function initializeFuncTypesRecursive(func) {
       } else if (node.kind === 'string') {
         node.inferredType = typeUtils.createStringType();
       } else {
-        throw new error.InternalError('Unexpected literal kind');
+        throw new errors.InternalError('Unexpected literal kind');
       }
     } else {
       throw new errors.InternalError('Unexpected node type');
