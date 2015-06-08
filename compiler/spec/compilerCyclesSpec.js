@@ -54,7 +54,7 @@ describe('Cycles suite:', function() {
 
   it('Initialization cycle, more complicated', function() {
     expect(function() {
-      compile('f = func() { yield 1 + x }\ng = if 0 then f else f\nx = g()\nyield x');
+      compile('f = func() { yield 1 + x }\ng = if true then f else f\nx = g()\nyield x');
     }).toThrowError(errors.CycleError);
   });
 

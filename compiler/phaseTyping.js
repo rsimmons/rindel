@@ -31,6 +31,10 @@ function typeFuncRecursive(func) {
         var expectedYieldType = node.inferredType;
         var expectedFuncType = typeUtils.createFunctionType(argTypes, expectedYieldType);
         typeUtils.unifyTypes(expectedFuncType, node.args[0].inferredType);
+      } else if (node.op === 'ifte') {
+        typeUtils.unifyTypes(node.args[0].inferredType, typeUtils.createBooleanType());
+        typeUtils.unifyTypes(node.args[1].inferredType, node.args[2].inferredType);
+        typeUtils.unifyTypes(node.inferredType, node.args[1].inferredType);
       } else {
         // TODO: implement
       }
