@@ -42,14 +42,16 @@ function initializeFuncTypesRecursive(func) {
     return;
   }
 
-  var paramTypes = [];
+  var params = [];
   for (var i = 0; i < func.params.length; i++) {
     var pt = typeUtils.createVariableType();
     func.params[i].inferredType = pt;
-    paramTypes.push(pt);
+    params.push({
+      type: pt,
+    });
   }
   var yieldType = typeUtils.createVariableType();
-  func.inferredType = typeUtils.createFunctionType(paramTypes, yieldType);
+  func.inferredType = typeUtils.createFunctionType(params, yieldType);
 
   function initializeNodeTypesRecursive(node) {
     if (node.inferredType) {
@@ -111,12 +113,14 @@ function typeFuncRecursive(func) {
 
       // Unify this node type and argument types in some way, based on operation.
       if (node.op === 'app') {
-        var argTypes = [];
+        var expectedParams = [];
         for (var i = 1; i < node.args.length; i++) {
-          argTypes.push(node.args[i].inferredType);
+          expectedParams.push({
+            type: node.args[i].inferredType,
+          });
         }
         var expectedYieldType = node.inferredType;
-        var expectedFuncType = typeUtils.createFunctionType(argTypes, expectedYieldType);
+        var expectedFuncType = typeUtils.createFunctionType(expectedParams, expectedYieldType);
         typeUtils.unifyTypes(expectedFuncType, node.args[0].inferredType);
       } else if (NUMERIC_OPS.hasOwnProperty(node.op)) {
         typeUtils.unifyTypes(node.inferredType, typeUtils.NUMBER);

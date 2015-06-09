@@ -26,11 +26,13 @@ function createStringType() {
   };
 }
 
-function createFunctionType(paramTypes, yieldType) {
+// NOTE: params is not an array of types, but an array of objects,
+//  where type is one of those object's fields
+function createFunctionType(params, yieldType) {
   return {
     tag: 'function',
     fields: {
-      params: paramTypes,
+      params: params,
       yield: yieldType,
     },
   };
@@ -99,7 +101,7 @@ function unifyTypes(a, b) {
         throw new errors.TypeError('Types ' + a + ' and ' + b + ' can\'t be unified, mismatching number of params');
       }
       for (var i = 0; i < a.fields.params.length; i++) {
-        unifyTypes(a.fields.params[i], b.fields.params[i]);
+        unifyTypes(a.fields.params[i].type, b.fields.params[i].type);
       }
       unifyTypes(a.fields.yield, b.fields.yield);
     } else {
