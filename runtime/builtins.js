@@ -155,7 +155,7 @@ function timeOfLatest(runtime, startTime, argStreams, baseTopoOrder, result) {
 }
 
 function integral(runtime, startTime, argStreams, baseTopoOrder, result) {
-  if (argStreams.length !== 2) {
+  if (argStreams.length !== 3) {
     throw new Error('got wrong number of arguments');
   }
 
@@ -164,7 +164,11 @@ function integral(runtime, startTime, argStreams, baseTopoOrder, result) {
   if (integrand.tempo !== 'step') {
     throw new Error('Argument integrand must be step');
   }
-  var update = argStreams[1];
+  var initialValue = argStreams[1];
+  if (initialValue.tempo !== 'const') {
+    throw new Error('Argument initialValue must be const');
+  }
+  var update = argStreams[2];
   if (update.tempo !== 'event') {
     throw new Error('Argument update must be event');
   }
@@ -183,7 +187,7 @@ function integral(runtime, startTime, argStreams, baseTopoOrder, result) {
   }
 
   // here is our internal state and accumulating machinery
-  var sum = 0; // the integral up to this point
+  var sum = initialValue.value; // the integral up to this point
   var lastTime = startTime; // the last time we accumulated to sum
   var lastIntegrandVal = integrand.value; // the value of integrand at lastTime
   function accumulate(upToTime) {
@@ -277,8 +281,8 @@ module.exports = {
   },
   integral: {
     value: integral,
-    // TODO: make second parameter type more specific when type system supports it
-    // TODO: add delayed to integrand once we fix implementation to actually be delayed
-    type: typeUtils.createFunctionType([{type: typeUtils.NUMBER}, {type: typeUtils.createVariableType()}], typeUtils.NUMBER),
+    // TODO: make third parameter type more specific when type system supports it
+    // TODO: add back in delayed flag to first arg when it is properly supported?
+    type: typeUtils.createFunctionType([{type: typeUtils.NUMBER /*, delayed: true*/}, {type: typeUtils.NUMBER}, {type: typeUtils.createVariableType()}], typeUtils.NUMBER),
   },
 };
