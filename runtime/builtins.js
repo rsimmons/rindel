@@ -1,5 +1,6 @@
 'use strict';
 
+var typeUtils = require('../compiler/typeUtils.js');
 var primUtils = require('./primUtils');
 var liftStep = primUtils.liftStep;
 
@@ -243,24 +244,40 @@ function integral(runtime, startTime, argStreams, baseTopoOrder, result) {
 module.exports = {
   id: {
     value: liftStep(function(a) { return a; }, 1),
+    type: (function() {
+      var a = typeUtils.createVariableType();
+      return typeUtils.createFunctionType([{type: a}], a);
+    })(),
   },
   Vec2: {
     value: liftStep(function(x, y) { return {x: x, y: y}; }, 2),
+    // TODO: make yield type more specific when type system supports it
+    type: typeUtils.createFunctionType([{type: typeUtils.NUMBER}, {type: typeUtils.NUMBER}], typeUtils.createVariableType()),
   },
   sin: {
     value: liftStep(function(x) { return Math.sin(x); }, 1),
+    type: typeUtils.createFunctionType([{type: typeUtils.NUMBER}], typeUtils.NUMBER),
   },
   cos: {
     value: liftStep(function(x) { return Math.cos(x); }, 1),
+    type: typeUtils.createFunctionType([{type: typeUtils.NUMBER}], typeUtils.NUMBER),
   },
 
   delay1: {
     value: delay1,
+    type: (function() {
+      var a = typeUtils.createVariableType();
+      return typeUtils.createFunctionType([{type: a}], a);
+    })(),
   },
   timeOfLatest: {
     value: timeOfLatest,
+    // TODO: make parameter type more specific when type system supports it
+    type: typeUtils.createFunctionType([{type: typeUtils.createVariableType()}], typeUtils.NUMBER),
   },
   integral: {
     value: integral,
+    // TODO: make second parameter type more specific when type system supports it
+    type: typeUtils.createFunctionType([{type: typeUtils.NUMBER, delayed: true}, {type: typeUtils.createVariableType()}], typeUtils.NUMBER),
   },
 };
