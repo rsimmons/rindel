@@ -44,6 +44,10 @@ function initializeFuncTypesRecursive(func) {
 
   var params = [];
   for (var i = 0; i < func.params.length; i++) {
+    if (func.params[i].inferredType) {
+      continue;
+    }
+
     var pt = typeUtils.createVariableType();
     func.params[i].inferredType = pt;
     params.push({

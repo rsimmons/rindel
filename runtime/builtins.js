@@ -241,12 +241,26 @@ function integral(runtime, startTime, argStreams, baseTopoOrder, result) {
 }
 
 module.exports = {
-  id: liftStep(function(a) { return a; }, 1),
-  Vec2: liftStep(function(x, y) { return {x: x, y: y}; }, 2),
-  sin: liftStep(function(x) { return Math.sin(x); }, 1),
-  cos: liftStep(function(x) { return Math.cos(x); }, 1),
+  id: {
+    value: liftStep(function(a) { return a; }, 1),
+  },
+  Vec2: {
+    value: liftStep(function(x, y) { return {x: x, y: y}; }, 2),
+  },
+  sin: {
+    value: liftStep(function(x) { return Math.sin(x); }, 1),
+  },
+  cos: {
+    value: liftStep(function(x) { return Math.cos(x); }, 1),
+  },
 
-  delay1: delay1,
-  timeOfLatest: timeOfLatest,
-  integral: integral,
+  delay1: {
+    value: delay1,
+  },
+  timeOfLatest: {
+    value: timeOfLatest,
+  },
+  integral: {
+    value: integral,
+  },
 };

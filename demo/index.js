@@ -3,6 +3,7 @@
 var fs = require('fs'); // for loading demos
 var Runtime = require('../runtime');
 var Compiler = require('../compiler');
+var typeUtils = require('../compiler/typeUtils.js'); // TODO: unhack this
 
 var demoProgsMap = {};
 var demoProgsList = [];
@@ -178,18 +179,22 @@ function compileAndStartProgram(code) {
     redraw: runtime.createEventStream(undefined, 0),
   });
 
+  var rootLexEnvTypes = {
+    mouseX: typeUtils.NUMBER,
+    mouseY: typeUtils.NUMBER,
+    mousePos: typeUtils.createVariableType(), // TODO: make more specific
+    mouseDown: typeUtils.BOOLEAN,
+    redraw: typeUtils.createVariableType(), // TODO: make more specific (unit type?), set tempo
+  };
+
   // add all builtins to root lexical environment
   for (var k in runtime.builtins) {
-    rootLexEnv[k] = runtime.createConstStream(runtime.builtins[k], 0);
-  }
-
-  var rootLexEnvNames = {};
-  for (var k in rootLexEnv) {
-    rootLexEnvNames[k] = null;
+    rootLexEnv[k] = runtime.createConstStream(runtime.builtins[k].value, 0);
+    rootLexEnvTypes[k] = runtime.builtins[k].type;
   }
 
   // compile code
-  var mainFuncSrc = Compiler.compile(code, rootLexEnvNames);
+  var mainFuncSrc = Compiler.compile(code, rootLexEnvTypes);
   console.log('compiled to JS:');
   console.log(mainFuncSrc);
   var mainFunc = eval(mainFuncSrc);

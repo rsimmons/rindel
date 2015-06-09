@@ -9,10 +9,10 @@ var phaseToposort = require('./phaseToposort.js');
 var phaseCodegen = require('./phaseCodegen.js');
 var util = require('./util.js');
 
-function compile(sourceCode, rootLexEnvNames) {
+function compile(sourceCode, rootLexEnvTypes) {
   // put these into an arbitrary but fixed order for later use
   var orderedRootLexEnvNames = [];
-  for (var n in rootLexEnvNames) {
+  for (var n in rootLexEnvTypes) {
     orderedRootLexEnvNames.push(n);
   }
 
@@ -35,9 +35,11 @@ function compile(sourceCode, rootLexEnvNames) {
 
   // make top-level func take all root lexenv names as arguments
   for (var i = 0; i < orderedRootLexEnvNames.length; i++) {
+    var n = orderedRootLexEnvNames[i];
     topFunc.params.push({
       type: 'param',
-      ident: orderedRootLexEnvNames[i],
+      ident: n,
+      inferredType: rootLexEnvTypes[n],
     });
   }
 
