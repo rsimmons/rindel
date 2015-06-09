@@ -11,6 +11,24 @@ describe('Cycles suite:', function() {
     }).toThrowError(errors.TypeError);
   });
 
+  it('Too many function arguments', function() {
+    expect(function() {
+      compile('f = func() { yield 1 }\nyield f(2)');
+    }).toThrowError(errors.TypeError);
+  });
+
+  it('Too many function arguments again', function() {
+    expect(function() {
+      compile('f = func(x) { yield x + 1 }\nyield f(2, 3)');
+    }).toThrowError(errors.TypeError);
+  });
+
+  it('Not enough function arguments', function() {
+    expect(function() {
+      compile('f = func(x) { yield x + 1 }\nyield f()');
+    }).toThrowError(errors.TypeError);
+  });
+
   it('Cannot apply number, via function', function() {
     expect(function() {
       compile('apply = func(f, x) { yield f(x) }\nyield apply(1, 2)');
