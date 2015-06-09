@@ -278,6 +278,7 @@ module.exports = {
   integral: {
     value: integral,
     // TODO: make second parameter type more specific when type system supports it
-    type: typeUtils.createFunctionType([{type: typeUtils.NUMBER, delayed: true}, {type: typeUtils.createVariableType()}], typeUtils.NUMBER),
+    // TODO: add delayed to integrand once we fix implementation to actually be delayed
+    type: typeUtils.createFunctionType([{type: typeUtils.NUMBER}, {type: typeUtils.createVariableType()}], typeUtils.NUMBER),
   },
 };

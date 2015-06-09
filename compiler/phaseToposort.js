@@ -27,15 +27,27 @@ function toposortFunctionRecursive(func, uidCounter, applicationDepth) {
 
     // Visit any nodes this node depends on.
     if (node.type === 'op') {
-      // TODO: Not all ops should pass on their applicationDepth unchanged when visiting children.
-      //  For example, if-then-else should pass applicationDepth 0 to its condition expression node,
-      //  but pass on the same applicationDepth to its consequent and alternative children.
-      for (var i = 0; i < node.args.length; i++) {
-        toposortVisit(node.args[i], applicationDepth);
-      }
-
       if (node.op === 'app') {
+        var funcType = node.args[0].inferredType;
+        if (funcType && ((funcType.tag !== 'function') || (funcType.fields.params.length !== (node.args.length - 1)))) {
+          throw new errors.InternalError('Should have been caught during type checking');
+        }
+
+        toposortVisit(node.args[0], applicationDepth);
+        for (var i = 1; i < node.args.length; i++) {
+          if (!funcType || !funcType.fields.params[i-1].delayed) {
+            toposortVisit(node.args[i], applicationDepth);
+          }
+        }
+
         toposortVisit(node.args[0], applicationDepth+1);
+      } else {
+        // TODO: Not all ops should pass on their applicationDepth unchanged when visiting children.
+        //  For example, if-then-else should pass applicationDepth 0 to its condition expression node,
+        //  but pass on the same applicationDepth to its consequent and alternative children.
+        for (var i = 0; i < node.args.length; i++) {
+          toposortVisit(node.args[i], applicationDepth);
+        }
       }
     } else if (node.type === 'param') {
       // nothing to do
