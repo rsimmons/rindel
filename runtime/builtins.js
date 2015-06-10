@@ -250,6 +250,32 @@ function integral(runtime, startTime, argStreams, baseTopoOrder, result) {
   return result;
 }
 
+function sample(runtime, startTime, argStreams, baseTopoOrder, result) {
+  if (argStreams.length !== 1) {
+    throw new Error('got wrong number of arguments');
+  }
+
+  // split out parameters and validate their tempos
+  var input = argStreams[0];
+  if (input.tempo !== 'step') {
+    throw new Error('Argument input must be step');
+  }
+
+  var inputVal = input.value;
+
+  // create or validate result, set output value
+  if (result) {
+    throw new Error('Not sure this makes sense');
+  } else {
+    result = {
+      outputStream: runtime.createStepStream(inputVal, startTime),
+      deactivator: function() {},
+    };
+  }
+
+  return result;
+}
+
 module.exports = {
   id: {
     value: liftStep(function(a) { return a; }, 1),
@@ -288,5 +314,12 @@ module.exports = {
     value: integral,
     // TODO: make third parameter type more specific when type system supports it
     type: typeUtils.createFunctionType([{type: typeUtils.NUMBER, delayed: true}, {type: typeUtils.NUMBER}, {type: typeUtils.createVariableType()}], typeUtils.NUMBER),
+  },
+  sample: {
+    value: sample,
+    type: (function() {
+      var a = typeUtils.createVariableType();
+      return typeUtils.createFunctionType([{type: a}], a);
+    })(),
   },
 };
