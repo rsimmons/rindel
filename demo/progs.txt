@@ -86,3 +86,18 @@ y = integral(velY, 0, redraw)
 yield Vec2(mousePos.x, 200-y)
 ---
 <p>Acceleration in Y axis is determined by whether or not mouse button is down. Velocity is integral of acceleration, position is integral of velocity.</p>
+
+=====
+
+damped follow
+---
+dampedFollow = func(startPos, targetPos, speed, update) {
+  x = integral(vx, startPos.x, update)
+  y = integral(vy, startPos.y, update)
+  vx = speed*(targetPos.x - x)
+  vy = speed*(targetPos.y - y)
+  yield Vec2(x, y)
+}
+yield dampedFollow(sample(mousePos), mousePos, 10, redraw)
+---
+<p></p>
