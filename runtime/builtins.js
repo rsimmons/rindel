@@ -173,19 +173,6 @@ function integral(runtime, startTime, argStreams, baseTopoOrder, result) {
     throw new Error('Argument update must be event');
   }
 
-  // create or validate result, set initial output value to zero
-  if (result) {
-    if (result.outputStream.tempo !== 'step') {
-      throw new Error('Incorrect output stream tempo');
-    }
-    result.outputStream.changeValue(0, startTime);
-  } else {
-    result = {
-      outputStream: runtime.createStepStream(0, startTime),
-      deactivator: null,
-    };
-  }
-
   // here is our internal state and accumulating machinery
   var sum = initialValue.value; // the integral up to this point
   var lastTime = startTime; // the last time we accumulated to sum
@@ -196,6 +183,19 @@ function integral(runtime, startTime, argStreams, baseTopoOrder, result) {
     }
     lastTime = upToTime;
     lastIntegrandVal = integrand.value;
+  }
+
+  // create or validate result, set initial output value to zero
+  if (result) {
+    if (result.outputStream.tempo !== 'step') {
+      throw new Error('Incorrect output stream tempo');
+    }
+    result.outputStream.changeValue(sum, startTime);
+  } else {
+    result = {
+      outputStream: runtime.createStepStream(sum, startTime),
+      deactivator: null,
+    };
   }
 
   // If integrand and update inputs change at same time, it seems like it
