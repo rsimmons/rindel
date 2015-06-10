@@ -165,9 +165,12 @@ function integral(runtime, startTime, argStreams, baseTopoOrder, result) {
     throw new Error('Argument integrand must be step');
   }
   var initialValue = argStreams[1];
+  // TODO: put this check back in
+  /*
   if (initialValue.tempo !== 'const') {
     throw new Error('Argument initialValue must be const');
   }
+  */
   var update = argStreams[2];
   if (update.tempo !== 'event') {
     throw new Error('Argument update must be event');
