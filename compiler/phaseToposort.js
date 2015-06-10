@@ -35,7 +35,35 @@ function toposortFunctionRecursive(func, uidCounter, applicationDepth) {
 
         toposortVisit(node.args[0], applicationDepth);
         for (var i = 1; i < node.args.length; i++) {
-          if (!funcType || !funcType.fields.params[i-1].delayed) {
+          if (funcType && funcType.fields.params[i-1].delayed) {
+            // TODO: If the argument is a constant, we could skip this stuff.
+            // This arg is "delayed", we don't need its value right away to initialize current app-op node.
+
+            // Create a "delayed" node to pass in for now. This is a stream that starts undefined and gets
+            //  its value copied in by a "copy" node.
+            var delayedNode = {
+              type: 'delayed',
+              uid: uidCounter.getNext(),
+              tempo: 'step', // TODO: this needs to be set correctly
+              containingFunction: node.containingFunction,
+              topoState: TOPOSTATE_ADDED,
+            };
+            node.containingFunction.sortedNodes.push(delayedNode);
+
+            // Create a "copy" node that will see changes on the "real" argument, and copy them
+            //  to the "delayed" node we just created.
+            var copyNode = {
+              type: 'copy',
+              uid: uidCounter.getNext(),
+              tempo: 'step', // TODO: this needs to be set correctly
+              fromNode: node.args[i],
+              toNode: delayedNode,
+              containingFunction: node.containingFunction,
+            };
+            exprRootsToVisit.push({node: copyNode, applicationDepth: applicationDepth}); // Visit this later
+
+            node.args[i] = delayedNode; // Change the reference that this node has to its argument to point at "delayed" node.
+          } else {
             toposortVisit(node.args[i], applicationDepth);
           }
         }
@@ -53,6 +81,11 @@ function toposortFunctionRecursive(func, uidCounter, applicationDepth) {
       // nothing to do
     } else if (node.type === 'literal') {
       // nothing to do
+    } else if (node.type === 'copy') {
+      if (node.toNode.topoState !== TOPOSTATE_ADDED) {
+        throw new errors.InternalError('Should have already been added');
+      }
+      toposortVisit(node.fromNode, applicationDepth);
     } else {
       throw new errors.InternalError('Unexpected node type found during toposort');
     }
@@ -82,13 +115,22 @@ function toposortFunctionRecursive(func, uidCounter, applicationDepth) {
     }
   }
 
-  // Traverse from all expression roots sortedNodes arrays
-  toposortVisit(func.body.yield, applicationDepth);
+  // Traverse from all expression roots sortedNodes arrays.
+  // We keep an array here because as we go, because we may add to it because of
+  //  applicaiton of functions with delayed parameters. And while visiting those
+  //  added roots, we could end up adding more.
+  var exprRootsToVisit = [];
+  exprRootsToVisit.push({node: func.body.yield, applicationDepth: applicationDepth});
   // NOTE: Nodes not already added to a sortedNodes array are not needed to compute output.
   //  If we wanted to eliminate dead code, we could pass a "dead" flag so that anything reached
   //  in these next recursive calls would not be added to sortedNodes arrays.
   for (var k in func.body.bindings) {
-    toposortVisit(func.body.bindings[k], applicationDepth);
+    exprRootsToVisit.push({node: func.body.bindings[k], applicationDepth: applicationDepth});
+  }
+
+  while (exprRootsToVisit.length > 0) {
+    var next = exprRootsToVisit.shift();
+    toposortVisit(next.node, next.applicationDepth);
   }
 
   // Here we handle a different type of "dead" code. There may be subfunctions (functions defined

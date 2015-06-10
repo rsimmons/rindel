@@ -43,6 +43,36 @@ Runtime.prototype.createEventStream = function(initialValue, startTime) {
   return new EventStream(initialValue, startTime);
 };
 
+Runtime.prototype.addStepCopyTrigger = function(fromNode, toNode, startTime) {
+  function doCopy(atTime) {
+    toNode.changeValue(fromNode.value, atTime);
+  }
+
+  doCopy(startTime);
+
+  fromNode.addTrigger(doCopy);
+
+  return function() {
+    fromNode.removeTrigger(doCopy);
+  };
+}
+
+Runtime.prototype.addEventCopyTrigger = function(fromNode, toNode, startTime) {
+  function doCopy(atTime) {
+    toNode.emitValue(fromNode.value, atTime);
+  }
+
+  if (fromNode.value) {
+    doCopy(startTime);
+  }
+
+  fromNode.addTrigger(doCopy);
+
+  return function() {
+    fromNode.removeTrigger(doCopy);
+  };
+}
+
 // run until time of next task is _greater than_ toTime
 Runtime.prototype.runToTime = function(toTime) {
   while (true) {

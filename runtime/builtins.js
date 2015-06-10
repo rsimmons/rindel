@@ -189,9 +189,11 @@ function integral(runtime, startTime, argStreams, baseTopoOrder, result) {
   // here is our internal state and accumulating machinery
   var sum = initialValue.value; // the integral up to this point
   var lastTime = startTime; // the last time we accumulated to sum
-  var lastIntegrandVal = integrand.value; // the value of integrand at lastTime
+  var lastIntegrandVal = undefined; // the value of integrand at lastTime
   function accumulate(upToTime) {
-    sum += (upToTime - lastTime)*lastIntegrandVal;
+    if (lastIntegrandVal !== undefined) {
+      sum += (upToTime - lastTime)*lastIntegrandVal;
+    }
     lastTime = upToTime;
     lastIntegrandVal = integrand.value;
   }
@@ -282,7 +284,6 @@ module.exports = {
   integral: {
     value: integral,
     // TODO: make third parameter type more specific when type system supports it
-    // TODO: add back in delayed flag to first arg when it is properly supported?
-    type: typeUtils.createFunctionType([{type: typeUtils.NUMBER /*, delayed: true*/}, {type: typeUtils.NUMBER}, {type: typeUtils.createVariableType()}], typeUtils.NUMBER),
+    type: typeUtils.createFunctionType([{type: typeUtils.NUMBER, delayed: true}, {type: typeUtils.NUMBER}, {type: typeUtils.createVariableType()}], typeUtils.NUMBER),
   },
 };

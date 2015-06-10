@@ -61,6 +61,30 @@ function codegenFunctionRecursive(func) {
       }
 
       codeFragments.push('  var ' + getNodeStreamExpr(node) + ' = runtime.createConstStream(' + litValueExpr + ', startTime);\n');
+    } else if (node.type === 'delayed') {
+      var streamCode;
+      if (node.tempo === 'step') {
+        streamCode = 'runtime.createStepStream(undefined, startTime)';
+      } else if (node.tempo === 'event') {
+        streamCode = 'runtime.createEventStream(undefined, startTime)';
+      } else {
+        throw new errors.InternalError('Unexpected tempo');
+      }
+      codeFragments.push('  var ' + getNodeStreamExpr(node) + ' = ' + streamCode + ';\n');
+    } else if (node.type === 'copy') {
+      var deactivateCopyTriggerVarname = 'deactCopy' + node.uid;
+
+      var addFuncName;
+      if (node.tempo === 'step') {
+        addFuncName = 'runtime.addStepCopyTrigger';
+      } else if (node.tempo === 'event') {
+        addFuncName = 'runtime.addEventCopyTrigger';
+      } else {
+        throw new errors.InternalError('Unexpected tempo');
+      }
+
+      codeFragments.push('  var ' + deactivateCopyTriggerVarname + ' = ' + addFuncName + '(' + getNodeStreamExpr(node.fromNode) + ', ' + getNodeStreamExpr(node.toNode) + ', startTime);\n');
+      deactivatorCalls.push(deactivateCopyTriggerVarname + '()');
     } else {
       throw new errors.InternalError('Unexpected node type found in tree');
     }
