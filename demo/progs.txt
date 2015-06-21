@@ -101,3 +101,22 @@ dampedFollow = func(startPos, targetPos, speed, update) {
 yield dampedFollow(sample(mousePos), mousePos, 10, redraw)
 ---
 <p></p>
+
+=====
+
+switching
+---
+cycle = func() {
+  downState = func() {
+    on not mouseDown become upState()
+    yield mousePos
+  }
+  upState = func() {
+    on mouseDown become downState()
+    yield delay1(mousePos)
+  }
+  yield upState()
+}
+yield cycle()
+---
+<p></p>
