@@ -62,6 +62,7 @@
   function organizeFunctionBody(bodyParts) {
     var yieldExpr;
     var bindingExprs = {}; // map from ident to expr
+    var onBecomes = [];
     for (var i = 0; i < bodyParts.length; i++) {
       var bp = bodyParts[i];
       if (bp.type === 'yield') {
@@ -74,6 +75,8 @@
           error('Bindings have name "' + bp.ident + '" bound more than once');
         }
         bindingExprs[bp.ident] = bp.expr;
+      } else if (bp.type === 'onbecome') {
+        onBecomes.push({conditionExpr: bp.condition, consequentExpr: bp.consequent});
       } else {
         error('Unexpected function body part');
       }
@@ -83,7 +86,7 @@
       error('No yield clause found in function body');
     }
 
-    return {yield: yieldExpr, bindings: bindingExprs};
+    return {yield: yieldExpr, bindings: bindingExprs, onBecomes: onBecomes};
   }
 
 }
@@ -153,6 +156,8 @@ kw_xor = _ "xor" !identifier_notstart _
 kw_or = _ "or" !identifier_notstart _
 kw_true = _ "true" !identifier_notstart _
 kw_false = _ "false" !identifier_notstart _
+kw_on = _ "on" !identifier_notstart _
+kw_become = _ "become" !identifier_notstart _
 
 keyword
   = kw_func
@@ -167,6 +172,8 @@ keyword
   / kw_or
   / kw_true
   / kw_false
+  / kw_on
+  / kw_become
 
 reserved_word
   = keyword
@@ -233,6 +240,7 @@ function_body
 
 function_body_part
   = kw_yield expr:expression { return {type: 'yield', expr: expr}; }
+  / kw_on condition:expression kw_become consequent:expression { return {type: 'onbecome', condition: condition, consequent: consequent}; }
   / ident:var_identifier equal expr:expression { return {type: 'binding', ident: ident, expr: expr}; }
 
 /*************************************
