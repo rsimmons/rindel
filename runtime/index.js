@@ -55,7 +55,7 @@ Runtime.prototype.addStepCopyTrigger = function(fromNode, toNode, startTime) {
   return function() {
     fromNode.removeTrigger(doCopy);
   };
-}
+};
 
 Runtime.prototype.addEventCopyTrigger = function(fromNode, toNode, startTime) {
   function doCopy(atTime) {
@@ -71,7 +71,7 @@ Runtime.prototype.addEventCopyTrigger = function(fromNode, toNode, startTime) {
   return function() {
     fromNode.removeTrigger(doCopy);
   };
-}
+};
 
 // run until time of next task is _greater than_ toTime
 Runtime.prototype.runToTime = function(toTime) {
