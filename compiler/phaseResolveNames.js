@@ -114,6 +114,39 @@ function resolveFunctionNamesRecursive(func, outerLexEnv) {
   for (var k in func.body.bindings) {
     func.body.bindings[k] = resolveNodeNamesRecursive(func.body.bindings[k]);
   }
+  for (var i = 0; i < func.body.onBecomes.length; i++) {
+    var ob = func.body.onBecomes[i];
+    ob.conditionExpr = resolveNodeNamesRecursive(ob.conditionExpr);
+
+    // Create object representing the trigger function, to contain sample nodes
+    ob.triggerFunc = {
+      sortedNodes: [],
+    };
+
+    // Make alternate environment with local bindings "sampled" with sample nodes.
+    //  It's important that we make a separate one of these for each on-become.
+    var curLexEnvSampled = {};
+    // copy outer lex env
+    for (var k in outerLexEnv) {
+      curLexEnvSampled[k] = outerLexEnv[k];
+    }
+    // add parameters
+    for (var j = 0; j < func.params.length; j++) {
+      curLexEnvSampled[func.params[j].ident] = func.params[j];
+    }
+    // add bindings
+    for (var k in func.body.bindings) {
+      var sampleNode = {
+        type: 'sample',
+        tempo: 'const', // TODO: should this be 'event' if target is event?
+        containingFunction: ob.triggerFunc, // contained by trigger
+        target: func.body.bindings[k], // TODO: is this safe/correct? bindings[k] can get modified
+      };
+      curLexEnvSampled[k] = sampleNode;
+    }
+
+    resolveFunctionNamesRecursive(ob.consequentFunc, curLexEnvSampled);
+  }
 }
 
 function resolveProgramNames(topFunc) {

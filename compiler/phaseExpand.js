@@ -5,6 +5,7 @@ var errors = require('./errors.js');
 // Do various bookkeeping tasks on tree.
 // - number function param nodes
 // - set containingFunction property of all (non-function) nodes
+// - for on-become clauses, replace consequent expression with no-arg function
 function expandFuncRecursive(func) {
   // set position numbers and containingFunction of param nodes
   for (var i = 0; i < func.params.length; i++) {
@@ -38,6 +39,25 @@ function expandFuncRecursive(func) {
   expandNodeRecursive(func.body.yield);
   for (var k in func.body.bindings) {
     expandNodeRecursive(func.body.bindings[k]);
+  }
+  for (var i = 0; i < func.body.onBecomes.length; i++) {
+    var ob = func.body.onBecomes[i];
+
+    expandNodeRecursive(ob.conditionExpr);
+
+    // change consequent from expression to no-arg function (yielding that expression)
+    ob.consequentFunc = {
+      params: [],
+      body: {
+        yield: ob.consequentExpr,
+        bindings: {},
+        onBecomes: [],
+      },
+    };
+
+    delete ob.consequentExpr;
+
+    expandFuncRecursive(ob.consequentFunc);
   }
 }
 
