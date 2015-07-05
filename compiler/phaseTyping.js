@@ -94,6 +94,11 @@ function initializeFuncTypesRecursive(func) {
   for (var k in func.body.bindings) {
     initializeNodeTypesRecursive(func.body.bindings[k]);
   }
+  for (var i = 0; i < func.body.onBecomes.length; i++) {
+    var ob = func.body.onBecomes[i];
+    initializeNodeTypesRecursive(ob.conditionExpr);
+    initializeFuncTypesRecursive(ob.consequentFunc);
+  }
 }
 
 function typeFuncRecursive(func) {
@@ -165,6 +170,12 @@ function typeFuncRecursive(func) {
   typeNodeRecursive(func.body.yield);
   for (var k in func.body.bindings) {
     typeNodeRecursive(func.body.bindings[k]);
+  }
+  for (var i = 0; i < func.body.onBecomes.length; i++) {
+    var ob = func.body.onBecomes[i];
+    // TODO: enforce constraints on types of conditionExpr and consequentFunc
+    typeNodeRecursive(ob.conditionExpr);
+    typeFuncRecursive(ob.consequentFunc);
   }
 }
 
