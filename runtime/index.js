@@ -73,6 +73,30 @@ Runtime.prototype.addEventCopyTrigger = function(fromNode, toNode, startTime) {
   };
 };
 
+Runtime.prototype.buildResult = function(existingResult, yieldStream, deactivatorFunc) {
+  var deactivateCopyTrigger;
+  var result;
+  if (existingResult) {
+    if (existingResult.deactivator) {
+      throw new Error('Existing result deactivator should be null');
+    }
+    deactivateCopyTrigger = runtime.addCopyTrigger(yieldStream, existingResult.outputStream);
+    result = existingResult;
+  } else {
+    result = {
+      outputStream: yieldStream,
+      deactivator: null,
+    };
+  }
+  result.deactivator = function() {
+    if (deactivateCopyTrigger) {
+      deactivateCopyTrigger();
+    }
+    deactivatorFunc();
+  };
+  return result;
+}
+
 // run until time of next task is _greater than_ toTime
 Runtime.prototype.runToTime = function(toTime) {
   while (true) {

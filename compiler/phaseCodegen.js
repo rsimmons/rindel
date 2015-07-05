@@ -111,25 +111,14 @@ function codegenFunctionRecursive(func) {
   //  but it just seems appropriate.
   deactivatorCalls.reverse();
 
-  // we might need to copy "inner" output to real output stream, if outputStream arg was provided
-  var innerOutputExpr = getNodeStreamExpr(func.body.yield);
-  codeFragments.push('  var deactivateCopyTrigger;\n');
-  codeFragments.push('  if (result) {\n');
-  codeFragments.push('    deactivateCopyTrigger = runtime.addCopyTrigger(' + innerOutputExpr + ', result.outputStream);\n');
-  codeFragments.push('  } else {\n');
-  codeFragments.push('    result = {outputStream: ' + innerOutputExpr + ', deactivator: null};\n');
-  codeFragments.push('  }\n');
-
-  codeFragments.push('  if (result.deactivator) { throw new Error(\'deactivator should be null\'); }\n');
-
-  codeFragments.push('  result.deactivator = function() {\n');
-  codeFragments.push('    if (deactivateCopyTrigger) { deactivateCopyTrigger(); }\n');
+  // Build result
+  codeFragments.push('  result = runtime.buildResult(result, ' + getNodeStreamExpr(func.body.yield) + ', function() {\n');
   for (var i = 0; i < deactivatorCalls.length; i++) {
     codeFragments.push('    ' + deactivatorCalls[i] + ';\n');
   }
-  codeFragments.push('  };\n');
+  codeFragments.push('  });\n');
 
-  // generate return statement
+  // Return result
   codeFragments.push('  return result;\n');
   codeFragments.push('})');
 
