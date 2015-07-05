@@ -90,6 +90,23 @@ function codegenFunctionRecursive(func) {
     }
   }
 
+  // Generate code for on-become clauses
+  for (var i = 0; i < func.body.onBecomes.length; i++) {
+    var ob = func.body.onBecomes[i];
+    // TODO: stuff
+    codeFragments.push('  ' + getNodeStreamExpr(ob.conditionExpr) + '.addTrigger(function(atTime) {\n');
+    // codeFragments.push('    console.log(\'Condition value changed to\', ' + getNodeStreamExpr(ob.conditionExpr) + '.value);\n');
+    codeFragments.push('    if (' + getNodeStreamExpr(ob.conditionExpr) + '.value) {\n');
+    // codeFragments.push('      console.log(\'switching\');\n');
+    codeFragments.push('      result.deactivator();\n');
+    codeFragments.push('      result.deactivator = null;\n');
+    // console.log('BLAAAH', ob.consequentFunc);
+    // TODO: fix this next indent
+    codeFragments.push('      var newAct = ' + util.indentFuncExpr(codegenFunctionRecursive(ob.consequentFunc)) + '(runtime, atTime, [], baseTopoOrder, result);\n');
+    codeFragments.push('    }\n');
+    codeFragments.push('  });\n');
+  }
+
   // I don't think these actually need to be reversed for things to work correctly,
   //  but it just seems appropriate.
   deactivatorCalls.reverse();
