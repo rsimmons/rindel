@@ -81,6 +81,8 @@ function toposortFunctionRecursive(func, uidCounter, applicationDepth) {
       // nothing to do
     } else if (node.type === 'literal') {
       // nothing to do
+    } else if (node.type === 'sample') {
+      toposortVisit(node.target, applicationDepth);
     } else if (node.type === 'copy') {
       if (node.toNode.topoState !== TOPOSTATE_ADDED) {
         throw new errors.InternalError('Should have already been added');
@@ -121,6 +123,10 @@ function toposortFunctionRecursive(func, uidCounter, applicationDepth) {
   //  added roots, we could end up adding more.
   var exprRootsToVisit = [];
   exprRootsToVisit.push({node: func.body.yield, applicationDepth: applicationDepth});
+  for (var i = 0; i < func.body.onBecomes.length; i++) {
+    var ob = func.body.onBecomes[i];
+    exprRootsToVisit.push({node: ob.conditionExpr, applicationDepth: applicationDepth});
+  }
   // NOTE: Nodes not already added to a sortedNodes array are not needed to compute output.
   //  If we wanted to eliminate dead code, we could pass a "dead" flag so that anything reached
   //  in these next recursive calls would not be added to sortedNodes arrays.
@@ -131,6 +137,13 @@ function toposortFunctionRecursive(func, uidCounter, applicationDepth) {
   while (exprRootsToVisit.length > 0) {
     var next = exprRootsToVisit.shift();
     toposortVisit(next.node, next.applicationDepth);
+  }
+
+  // Handle on-become consequents.
+  // TODO: not so sure this is correct, need to think and test more
+  for (var i = 0; i < func.body.onBecomes.length; i++) {
+    var ob = func.body.onBecomes[i];
+    toposortFunctionRecursive(ob.consequentFunc, uidCounter, 0);
   }
 
   // Here we handle a different type of "dead" code. There may be subfunctions (functions defined
