@@ -19,8 +19,8 @@ _Unlike_ most FRP languages, Rindel is implicitly lifted. It also uses a syntax 
 - Strictly "push" model ([push vs. pull explained](http://conal.net/papers/push-pull-frp/))
 - _Not_ based on a continuous-time conceptual model
 - Type system tied to Javascript's
+- Statically typed with type inference
 - **Coming Soon** Custom syntax for switching, that resembles tail recursive calls
-- **Planned** Statically typed with type inference
 - **Planned** Optimized using [lowering transformations](http://cs.brown.edu/~sk/Publications/Papers/Published/bck-lowering-opt-trans-frp/paper.pdf)
 
 ## Demo/Examples
