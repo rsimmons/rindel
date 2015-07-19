@@ -45,6 +45,7 @@ Runtime.prototype.createEventStream = function(initialValue, startTime) {
 
 Runtime.prototype.addStepCopyTrigger = function(fromNode, toNode, startTime) {
   function doCopy(atTime) {
+    // console.log('doing copy', fromNode.value, atTime);
     toNode.changeValue(fromNode.value, atTime);
   }
 
@@ -73,14 +74,17 @@ Runtime.prototype.addEventCopyTrigger = function(fromNode, toNode, startTime) {
   };
 };
 
-Runtime.prototype.buildResult = function(existingResult, yieldStream, deactivatorFunc) {
+Runtime.prototype.buildResult = function(startTime, existingResult, yieldStream, deactivatorFunc) {
+  var runtime = this;
   var deactivateCopyTrigger;
   var result;
+  var rand = Math.random();
   if (existingResult) {
     if (existingResult.deactivator) {
       throw new Error('Existing result deactivator should be null');
     }
-    deactivateCopyTrigger = runtime.addCopyTrigger(yieldStream, existingResult.outputStream);
+    // TODO: handle if this is not step
+    deactivateCopyTrigger = runtime.addStepCopyTrigger(yieldStream, existingResult.outputStream, startTime);
     result = existingResult;
   } else {
     result = {

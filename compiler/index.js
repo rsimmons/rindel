@@ -68,7 +68,7 @@ function compile(sourceCode, rootLexEnvTypes) {
     codeFragments.push('  topArgStreams.push(rootLexEnv[\'' + orderedRootLexEnvNames[i] + '\']);\n'); // TODO: string-escape properly just in case?
   }
 
-  codeFragments.push('  return ' + util.indentFuncExpr(topFuncCode) + '(runtime, 0, topArgStreams, null, \'\');\n');
+  codeFragments.push('  return ' + util.indentFuncExpr(topFuncCode) + '(runtime, 0, topArgStreams, \'\', null);\n');
   codeFragments.push('})');
   return codeFragments.join('');
 }

@@ -125,6 +125,7 @@ function toposortFunctionRecursive(func, uidCounter, applicationDepth) {
   exprRootsToVisit.push({node: func.body.yield, applicationDepth: applicationDepth});
   for (var i = 0; i < func.body.onBecomes.length; i++) {
     var ob = func.body.onBecomes[i];
+    ob.uid = uidCounter.getNext(); // we give each on-become itself a uid, as it's useful later
     exprRootsToVisit.push({node: ob.conditionExpr, applicationDepth: applicationDepth});
   }
   // NOTE: Nodes not already added to a sortedNodes array are not needed to compute output.

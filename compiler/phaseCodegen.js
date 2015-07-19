@@ -30,6 +30,7 @@ function codegenFunctionRecursive(func) {
 
   // iterate sorted nodes, doing some code generation
   var deactivatorCalls = [];
+  var didTCO = false;
   for (var i = 0; i < func.sortedNodes.length; i++) {
     var node = func.sortedNodes[i];
     if (node.type === 'op') {
@@ -40,9 +41,30 @@ function codegenFunctionRecursive(func) {
 
       var opFuncName = 'runtime.opFuncs.' + node.op;
 
-      codeFragments.push('  var act' + node.uid + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\', null); var ' + getNodeStreamExpr(node) + ' = act' + node.uid + '.outputStream;\n');
+      var resultArgStr;
+      if ((node == func.body.yield) && (deactivatorCalls.length == 0) && (func.body.onBecomes.length == 0)) {
+        // Do TCO
+        if (didTCO) {
+          throw new errors.InternalError('Should not be possible');
+        }
+        if (i != (func.sortedNodes.length-1)) {
+          throw new errors.InternalError('Confusing');
+        }
 
-      deactivatorCalls.push('act' + node.uid + '.deactivator()');
+        didTCO = true;
+        resultArgStr = 'result';
+        codeFragments.push('  /*TCO*/\n');
+      } else {
+        resultArgStr = 'null';
+        deactivatorCalls.push('act' + node.uid + '.deactivator()');
+      }
+      if ((node.op === 'app') && (node.args[0].type === 'literal')) {
+        // Op is app and function being applied is literal. Special case this to just directly call activator
+        codeFragments.push('  var act' + node.uid + ' = ' + argStreamExprs[0] + '.value(runtime, startTime, [' + argStreamExprs.slice(1).join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\', ' + resultArgStr + '); var ' + getNodeStreamExpr(node) + ' = act' + node.uid + '.outputStream;\n');
+      } else {
+        // Otherwise just call operator implementation function
+        codeFragments.push('  var act' + node.uid + ' = ' + opFuncName + '(runtime, startTime, [' + argStreamExprs.join(', ') + '], baseTopoOrder+\'' + node.topoOrder + '\', ' + resultArgStr + '); var ' + getNodeStreamExpr(node) + ' = act' + node.uid + '.outputStream;\n');
+      }
     } else if (node.type === 'param') {
       codeFragments.push('  var ' + getNodeStreamExpr(node) + ' = argStreams[' + node.position + '];\n');
     } else if (node.type === 'literal') {
@@ -94,32 +116,35 @@ function codegenFunctionRecursive(func) {
   for (var i = 0; i < func.body.onBecomes.length; i++) {
     var ob = func.body.onBecomes[i];
     // TODO: stuff
-    codeFragments.push('  ' + getNodeStreamExpr(ob.conditionExpr) + '.addTrigger(function(atTime) {\n');
-    // codeFragments.push('    console.log(\'Condition value changed to\', ' + getNodeStreamExpr(ob.conditionExpr) + '.value);\n');
+    codeFragments.push('  var trig' + ob.uid + ' = function(atTime) {\n');
     codeFragments.push('    if (' + getNodeStreamExpr(ob.conditionExpr) + '.value) {\n');
-    // codeFragments.push('      console.log(\'switching\');\n');
     codeFragments.push('      result.deactivator();\n');
     codeFragments.push('      result.deactivator = null;\n');
-    // console.log('BLAAAH', ob.consequentFunc);
     // TODO: fix this next indent
     codeFragments.push('      var newAct = ' + util.indentFuncExpr(codegenFunctionRecursive(ob.consequentFunc)) + '(runtime, atTime, [], baseTopoOrder, result);\n');
     codeFragments.push('    }\n');
-    codeFragments.push('  });\n');
+    codeFragments.push('  };\n');
+    codeFragments.push('  ' + getNodeStreamExpr(ob.conditionExpr) + '.addTrigger(trig' + ob.uid + ');\n');
+    deactivatorCalls.push(getNodeStreamExpr(ob.conditionExpr) + '.removeTrigger(trig' + ob.uid + ')');
   }
 
   // I don't think these actually need to be reversed for things to work correctly,
   //  but it just seems appropriate.
   deactivatorCalls.reverse();
 
-  // Build result
-  codeFragments.push('  result = runtime.buildResult(result, ' + getNodeStreamExpr(func.body.yield) + ', function() {\n');
-  for (var i = 0; i < deactivatorCalls.length; i++) {
-    codeFragments.push('    ' + deactivatorCalls[i] + ';\n');
+  if (didTCO) {
+    codeFragments.push('  return act' + func.body.yield.uid + ';\n');
+  } else {
+    // Build result
+    codeFragments.push('  result = runtime.buildResult(startTime, result, ' + getNodeStreamExpr(func.body.yield) + ', function() {\n');
+    for (var i = 0; i < deactivatorCalls.length; i++) {
+      codeFragments.push('    ' + deactivatorCalls[i] + ';\n');
+    }
+    codeFragments.push('  });\n');
+    codeFragments.push('  return result;\n');
   }
-  codeFragments.push('  });\n');
 
   // Return result
-  codeFragments.push('  return result;\n');
   codeFragments.push('})');
 
   // join generated code fragments and return

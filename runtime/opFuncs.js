@@ -36,13 +36,10 @@ function dynamicApplication(runtime, startTime, argStreams, baseTopoOrder, resul
   // add trigger to update activator
   funcStream.addTrigger(updateActivator);
 
-  return {
-    outputStream: innerResult.outputStream,
-    deactivator: function() {
-      funcStream.removeTrigger(updateActivator);
-      innerResult.deactivator();
-    },
-  };
+  return runtime.buildResult(startTime, result, innerResult.outputStream, function() {
+    funcStream.removeTrigger(updateActivator);
+    innerResult.deactivator();
+  });
 };
 
 module.exports = {

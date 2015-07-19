@@ -78,6 +78,9 @@ StepStream.prototype.tempo = 'step';
 
 StepStream.prototype.changeValue = function(value, atTime) {
   this.value = value;
+  if (atTime === undefined) {
+    throw new Error('changeValue at undefined time');
+  }
   this.triggerSet.fire(atTime);
 }
 
