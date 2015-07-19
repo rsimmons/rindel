@@ -104,8 +104,18 @@ function resolveFunctionNamesRecursive(func, outerLexEnv) {
       }
 
       return node;
+    } else if (node.type === 'sample') {
+      if (node.resState === RES_COMPLETE) {
+        return node;
+      }
+
+      node.resState = RES_COMPLETE;
+
+      node.target = resolveNodeNamesRecursive(node.target);
+
+      return node;
     } else {
-      throw new errors.InternalError('Unexpected node type');
+      throw new errors.InternalError('Unexpected node type: ' + node.type);
     }
   }
 

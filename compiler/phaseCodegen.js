@@ -120,6 +120,14 @@ function codegenFunctionRecursive(func) {
     codeFragments.push('    if (' + getNodeStreamExpr(ob.conditionExpr) + '.value) {\n');
     codeFragments.push('      result.deactivator();\n');
     codeFragments.push('      result.deactivator = null;\n');
+    for (var j = 0; j < ob.triggerFunc.sortedNodes.length; j++) {
+      var node = ob.triggerFunc.sortedNodes[j];
+      if (node.type === 'sample') {
+        codeFragments.push('      var reg' + node.uid + ' = runtime.createConstStream(reg' + node.target.uid + '.value, atTime);\n');
+      } else {
+        throw new errors.InternalError('Unexpected node type');
+      }
+    }
     // TODO: fix this next indent
     codeFragments.push('      var newAct = ' + util.indentFuncExpr(codegenFunctionRecursive(ob.consequentFunc)) + '(runtime, atTime, [], baseTopoOrder, result);\n');
     codeFragments.push('    }\n');

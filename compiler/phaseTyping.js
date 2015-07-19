@@ -84,6 +84,9 @@ function initializeFuncTypesRecursive(func) {
       } else {
         throw new errors.InternalError('Unexpected literal kind');
       }
+    } else if (node.type === 'sample') {
+      node.inferredType = typeUtils.createVariableType();
+      initializeNodeTypesRecursive(node.target);
     } else {
       throw new errors.InternalError('Unexpected node type');
     }
@@ -161,6 +164,9 @@ function typeFuncRecursive(func) {
       if (node.kind === 'function') {
         typeFuncRecursive(node.value);
       }
+    } else if (node.type === 'sample') {
+      typeNodeRecursive(node.target);
+      typeUtils.unifyTypes(node.inferredType, node.target.inferredType);
     } else {
       throw new errors.InternalError('Unexpected node type');
     }

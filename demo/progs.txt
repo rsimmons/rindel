@@ -120,3 +120,17 @@ cycle = func() {
 yield cycle()
 ---
 <p></p>
+
+=====
+
+bouncing
+---
+ballistic = func(x0, v0, a, update) {
+  on (x < 0) become ballistic(0, -0.9*v, a, update)
+  v = integral(a, v0, update)
+  x = integral(v, x0, update)
+  yield x
+}
+yield Vec2(300, 400-ballistic(400, 0, -500, redraw))
+---
+<p></p>
